@@ -17,10 +17,21 @@ const userSchema = mongoose.Schema({
         type: String,
         required: [true , "Please enter your password"],
         minLength: [8 , "Password must be at least 8 characters"],
+        trim: true
     },
     confirmPassword:{
        type: String,
+       trim: true,
         minLength: [8 , "Password must be at least 8 characters"],
+    },
+    passwordChangedAt:{
+        type: Date,
+
+
+    },
+    bio:{
+        type: String,
+        default: "Hello, I am using this app",
     },
     role:{
         type: String,
