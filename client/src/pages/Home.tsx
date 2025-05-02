@@ -2,6 +2,8 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { SearchIcon, TrendingUpIcon, ShieldCheckIcon, MessageSquareIcon } from 'lucide-react';
 const Home = () => {
+
+  const user = true  
   // Sample featured auctions
   const featuredAuctions = [{
     id: 1,
@@ -49,9 +51,13 @@ const Home = () => {
                 <Link to="/register" className="bg-white text-blue-600 hover:bg-gray-100 px-6 py-3 rounded-md font-medium text-center">
                   Get Started
                 </Link>
+                {user ? <Link to="/dashboard" className="bg-transparent hover:bg-blue-700 border border-white px-6 py-3 rounded-md font-medium text-center">
+                  Dashboard
+                </Link> :
                 <Link to="/login" className="bg-transparent hover:bg-blue-700 border border-white px-6 py-3 rounded-md font-medium text-center">
                   Sign In
                 </Link>
+                }
               </div>
             </div>
             <div className="hidden md:block">

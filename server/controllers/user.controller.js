@@ -56,7 +56,6 @@ export const registerUser1 = async(req, res) =>{
         const hashedPassword = await bcrypt.hash(password, salt)
         const newUser = await User.create({
             email,
-            password,
             fullName,
             password: hashedPassword,
         })
@@ -107,10 +106,10 @@ try {
         });
     }
     const formatedPhone = cleanPhoneDigit.startsWith("92") ? "0" + cleanPhoneDigit.substring(2) : cleanPhoneDigit
-if(role !== "buyer" && role !== "seller" && role !== "admin"){
+if(role !== "buyer" && role !== "seller" && role !== "both"){
     return res.status(400).json({
         success: false,
-        message: "Role must be either buyer, seller or admin",
+        message: "Role must be either buyer, seller or both seller and buyer",
     })
 }
 
@@ -120,7 +119,8 @@ const user = await User.findByIdAndUpdate(userId, {
     businessDescription,
     location,
     role,
-    isActive:true
+    isActive:true,
+    taxId: Math.floor(100000 + Math.random() * 900000).toString(), // Generate a random 6-digit tax ID
 }
 , {new: true})
 if(!user){

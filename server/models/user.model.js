@@ -35,13 +35,12 @@ const userSchema = mongoose.Schema({
     },
     role:{
         type: String,
-        enum: ["buyer" , "seller" , "admin"],
+        enum: ["buyer" , "seller" , "both"],
         default: "buyer",
     },
-    phone:{
-        type: String,
-        unique: true,
-    },
+    phone: {
+        type: String
+      },
     
     location:{
         type: String,
@@ -60,10 +59,7 @@ const userSchema = mongoose.Schema({
         type: Boolean,
         default: false,
     },
-    isVerified:{
-        type: Boolean,
-        default: false,
-    },
+  
 },{timestamps: true})
 
 
