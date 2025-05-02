@@ -10,21 +10,26 @@ const productSchema = mongoose.Schema(
       type: String,
       required: [true, "Please enter your product description"],
     },
-    image: {
-      type: String,
-      required: [true, "Please enter your product image"],
-    },
+    image: [
+      {
+        url: { type: String, required: true },
+        public_id: { type: String, required: true }
+      }
+    ],
+
     startingPrice: {
       type: Number,
       required: [true, "Please enter your product price"],
     },
-    minBid: {
+    minBidIncrement: {
       type: Number,
       required: [true, "Please enter your minimun Bid"],
+      default: 10,
     },
     bidDuration: {
       type: Number,
       required: [true, "Please enter your Bid duration"],
+      default: 7,
     },
     location: {
       type: String,
@@ -62,6 +67,12 @@ const productSchema = mongoose.Schema(
       ],
       default: "new",
     },
+    shippingOption: {
+      type: String,
+      enum: ["Local Pickup Only", "Shipping Available"],
+      default: "Local Pickup Only",
+    },
+    endsAt: { type: Date }, 
     seller: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

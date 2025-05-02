@@ -88,7 +88,7 @@ export const registerUser1 = async(req, res) =>{
 export const registerUser2 = async(req,res)=>{
 try {
     const userId = req.user._id
-    console.log(userId)
+    // console.log(userId)
     const { businessName, businessDescription, location, role,phone} = req.body
     if(!phone || !businessName || !businessDescription || !location || !role){
         return res.status(400).json({
@@ -396,7 +396,7 @@ export const updatePassword = async(req,res)=>{
 export const deleteAccount = async(req,res)=>{
     try {
         const userId = req.user._id
-        console.log(userId)
+        // console.log(userId)
         const deletedUser = await User.findByIdAndDelete(userId)
         if(!deletedUser){
             res.status(400).json({

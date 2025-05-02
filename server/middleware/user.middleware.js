@@ -25,7 +25,7 @@ const protect = async(req,res,next) =>{
  
         // console.log(decoded)
         req.user = user
-        console.log(req.user)
+        // console.log(req.user)
         next()
     } catch (error) {
         console.log(error.message)

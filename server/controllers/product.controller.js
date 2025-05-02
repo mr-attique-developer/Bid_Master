@@ -1,0 +1,152 @@
+import { urlencoded } from "express";
+import  { cloudinary } from "../config/cloudinaryConfig.js";
+import Product from "../models/product.model.js";
+import User from "../models/user.model.js";
+import sendEmail from "../utils/email.js";
+
+
+export const createProduct = async(req,res) =>{
+    try {
+        const {title, description,startingPrice, minBidIncrement, bidDuration, location, category, condition} = req.body;
+        if(!title || !description || !startingPrice || !minBidIncrement || !bidDuration || !location || !category || !condition) {
+            return res.status(400).json({success: false, message: "Please fill all the fields" });
+        }
+        if(!req.files || req.files.length === 0) {
+            return res.status(400).json({success: false, message: "Please upload at least one image" });
+        }
+        const sellerId = req.user._id
+        console.log("Seller Id ",sellerId)
+        const image = req.files.map(file => ({
+            url: file.path,
+            public_id: file.filename, 
+          }));
+        const product = await Product.create({
+            title,
+            description,
+            image,
+            startingPrice,
+            minBidIncrement,
+            bidDuration,
+            location,
+            category,
+            condition,
+            seller: sellerId
+        });
+
+        const users = await User.find({_id:{$ne:sellerId}}).select("email")
+        console.log("Users ",users)
+        if(!users) {
+            return res.status(404).json({success: false, message: "User not found" });
+        }
+
+        for (const user of users){
+            await sendEmail(
+                user.email,
+                "New Product Added",
+                `A new product has been added by ${req.user.fullName},  auction titled "${title}. Check it out!`,
+            )
+        }
+
+        res.status(201).json({success: true, message: "Product Created Successfully", product });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({success: false, message: "Error in Creating Product" });
+        
+    }
+}
+
+
+export const getAllProducts = async(req,res) =>{
+    try {
+        const products = await Product.find({}).populate("seller", "fullName email")
+        res.status(200).json({count: Product.length, success: true, message: "Products fetched successfully", products });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({success: false, message: "Error in fetching Products" });
+        
+    }
+}
+
+
+export const getSingleProduct = async(req,res) =>{
+    try {
+        const {id} = req.params;
+        const product = await Product.findById(id).populate("seller", "fullName email")
+        if(!product) {
+            return res.status(404).json({success: false, message: "Product not found" });
+        }
+        res.status(200).json({success: true, message: "Product fetched successfully", product });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({success: false, message: "Error in fetching Product" });
+        
+    }
+}
+
+
+
+export const deleteProduct = async( req, res) =>{
+    try {
+        const {id} = req.params;
+        const product = await Product.findById(id).populate("seller", "fullName email")
+        console.log(product)
+        if(!product) {
+            return res.status(404).json({success: false, message: "Product not found" });
+        }
+        if(product.seller._id.toString() !== req.user._id.toString()) {
+            return res.status(401).json({success: false, message: "You are not authorized to delete this product" });
+        }
+        await Product.findByIdAndDelete(id)
+        for(const img of product.image){
+            cloudinary.uploader.destroy(img.public_id)
+        }
+        res.status(200).json({success: true, message: "Product deleted successfully" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({success: false, message: "Error in deleting Product" });
+        
+    }
+}
+
+export const updateProduct = async(req,res) =>{
+    try {
+        const {id} = req.params;
+        const product = await Product.findById(id).populate("seller", "fullName email")
+        console.log(product)
+        if(!product) {
+            return res.status(404).json({success: false, message: "Product not found" });
+        }
+        if(product.seller._id.toString() !== req.user._id.toString()) {
+            return res.status(401).json({success: false, message: "You are not authorized to update this product" });
+        }
+        const {title, description,startingPrice, minBidIncrement, bidDuration, location, category, condition} = req.body;
+        if(!title || !description || !startingPrice || !minBidIncrement || !bidDuration || !location || !category || !condition) {
+            return res.status(400).json({success: false, message: "Please fill all the fields" });
+        }
+        console.log(title, description,startingPrice, minBidIncrement, bidDuration, location, category, condition)
+        if(!req.files || req.files.length === 0) {
+            return res.status(400).json({success: false, message: "Please upload at least one image" });
+        }
+        const image = req.files.map(file => ({
+            url: file.path,
+            public_id: file.filename, 
+          }));
+        product.title = title;
+        product.description = description;
+        product.image = image;
+        product.startingPrice = startingPrice;
+        product.minBidIncrement = minBidIncrement;
+        product.bidDuration = bidDuration;
+        product.location = location;
+        product.category = category;
+        product.condition = condition;
+        await product.save()
+        res.status(200).json({success: true, message: "Product updated successfully", product });
+    }
+    catch (error) {
+        console.error(error);
+        res.status(500).json({success: false, message: "Error in updating Product" });
+        
+    }
+}
+
