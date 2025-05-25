@@ -1,4 +1,4 @@
-import { urlencoded } from "express";
+
 import  { cloudinary } from "../config/cloudinaryConfig.js";
 import Product from "../models/product.model.js";
 import User from "../models/user.model.js";
@@ -30,7 +30,9 @@ export const createProduct = async(req,res) =>{
             location,
             category,
             condition,
-            seller: sellerId
+            seller: sellerId,
+            adminFeePaid: false,
+            status: "pending"
         });
 
         const users = await User.find({_id:{$ne:sellerId}}).select("email")

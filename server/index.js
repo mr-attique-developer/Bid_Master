@@ -5,6 +5,8 @@ import "dotenv/config.js"
 import connectDB from './config/db.js';
 import userRoutes from "./routes/user.routes.js"
 import productRoutes from "./routes/product.routes.js"
+// import stripeWebhoodRoutes from "./routes/stripeWebhook.routes.js"
+// import paymentRoutes from "./routes/payment.routes.js"
 import bodyParser from "body-parser"
 
 
@@ -16,6 +18,13 @@ app.use(cors({
 }))
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
+
+
+// stripe weebhook
+
+// app.use("/api/v1/stripe", stripeWebhoodRoutes)
+
+
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser())
@@ -34,6 +43,7 @@ connectDB()
 
 app.use("/api/v1/user", userRoutes)
 app.use("/api/v1/product", productRoutes)
+// app.use("/api/v1/payment", paymentRoutes)
 
 app.listen(port, ()=>{
     console.log(`Server is running on port ${port}`)

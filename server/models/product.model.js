@@ -13,8 +13,8 @@ const productSchema = mongoose.Schema(
     image: [
       {
         url: { type: String, required: true },
-        public_id: { type: String, required: true }
-      }
+        public_id: { type: String, required: true },
+      },
     ],
 
     startingPrice: {
@@ -34,6 +34,15 @@ const productSchema = mongoose.Schema(
     location: {
       type: String,
       required: [true, "Please enter your product location"],
+    },
+    status: {
+      type: String,
+      enum: ["pending", "listed", "sold"],
+      default: "pending",
+    },
+    adminFeePaid: {
+      type: Boolean,
+      default: false,
     },
     category: {
       type: String,
@@ -72,7 +81,7 @@ const productSchema = mongoose.Schema(
       enum: ["Local Pickup Only", "Shipping Available"],
       default: "Local Pickup Only",
     },
-    endsAt: { type: Date }, 
+    endsAt: { type: Date },
     seller: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
