@@ -3,6 +3,7 @@ import Product from "../models/product.model.js";
 import Bid from "../models/bid.model.js"
 import User from "../models/user.model.js"
 import sendEmail from "../utils/email.js"
+import Chat from "../models/chat.model.js";
 
 cron.schedule("* * * * *", async () => {
   try {
@@ -45,6 +46,17 @@ cron.schedule("* * * * *", async () => {
         `📦 Your auction for "${product.title}" has ended. The highest bidder is ${winner.fullName} with a bid of ${highestBid.amount}.`
       );
 
+      let chatRoom = await Chat.findOne({
+        participants: { $all: [winner._id, seller._id] }
+      })
+      if(!chatRoom) {
+        chatRoom = await  Chat.create({
+          participants: [winner._id, seller._id],
+          messages: [],
+          product: product._id
+        });
+        await chatRoom.save();
+      }
       // TODO: Optionally create a chat room between seller and winner
     }
 
