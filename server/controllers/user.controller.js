@@ -264,8 +264,8 @@ export const getUserProfile = async(req,res) =>{
 export const updateUserProfile = async(req,res) =>{
     try {
         const userId = req.user._id
-        const {email, fullName, phone, businessName, businessDescription, location, bio, role} = req.body
-        if(!email || !fullName || !phone || !businessName || !businessDescription || !location || !bio || !role){
+        const {email, fullName, phone,location, bio} = req.body
+        if(!email || !fullName || !phone || !location || !bio ){
             return res.status(400).json({
                 success: false,
                 message: "Please fill all the fields",
@@ -299,11 +299,8 @@ export const updateUserProfile = async(req,res) =>{
             email,
             fullName,
             phone : formatedPhone,
-            businessName,
-            businessDescription,
             location,
-            bio,
-            role
+            bio
         }, {new: true, select: "-password"})
         if(!updatedUser){
             return res.status(400).json({
@@ -328,25 +325,13 @@ export const updateUserProfile = async(req,res) =>{
 
 export const updatePassword = async(req,res)=>{
     try {
+        console.log('Received body:', req.body); // Add this line
         const userId = req.user._id
         const {oldPassword, newPassword, confirmPassword} = req.body
         if(!oldPassword || !newPassword || !confirmPassword){
             return res.status(400).json({
                 success: false,
                 message: "Please fill all the fields",
-            })
-        }
-        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
-        if(!passwordRegex.test(newPassword)){
-            return res.status(400).json({
-                success: false,
-                message: "Password must be at least 8 characters long, contain at least one uppercase letter, one lowercase letter, and one number",
-            })
-        }
-        if(newPassword !== confirmPassword){
-            return res.status(400).json({
-                success: false,
-                message: "New password and confirm password do not match",
             })
         }
         const user = await User.findById(userId)
@@ -361,6 +346,19 @@ export const updatePassword = async(req,res)=>{
             return res.status(400).json({
                 success: false,
                 message: "Old password is incorrect",
+            })
+        }
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
+        if(!passwordRegex.test(newPassword)){
+            return res.status(400).json({
+                success: false,
+                message: "Password must be at least 8 characters long, contain at least one uppercase letter, one lowercase letter, and one number",
+            })
+        }
+        if(newPassword !== confirmPassword){
+            return res.status(400).json({
+                success: false,
+                message: "New password and confirm password do not match",
             })
         }
         const salt = await bcrypt.genSalt(10)

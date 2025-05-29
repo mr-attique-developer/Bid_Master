@@ -26,8 +26,6 @@ const userSchema = mongoose.Schema({
     },
     passwordChangedAt:{
         type: Date,
-
-
     },
     bio:{
         type: String,

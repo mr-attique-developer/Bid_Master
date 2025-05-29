@@ -4,6 +4,7 @@ import { UserIcon, MailIcon, LockIcon, PhoneIcon, MapPinIcon, LoaderCircle } fro
 import { useRegisterUser1Mutation, useRegisterUser2Mutation } from '../../services/authApi';
 import { useDispatch } from 'react-redux';
 import { setCredentials } from '../../features/auth/authSlice';
+import { toast } from 'react-toastify';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -47,7 +48,8 @@ const Register = () => {
       return false;
     }
     if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters long');
+      setError(register1Error?.data?.message || 'Password must be at least 8 characters long');
+      toast.error(register1Error?.data?.message || 'Password must be at least 8 characters long');
       return false;
     }
   register1Error && setError(register1Error?.data?.message);
@@ -67,6 +69,7 @@ const Register = () => {
     if ((formData.role === 'seller' || formData.role === 'both') && 
         (!formData.businessName || !formData.businessDescription)) {
       setError('Please fill in all seller information');
+      toast.error('Please fill in all seller information');
       return false;
     }
     return true;
@@ -88,6 +91,7 @@ const Register = () => {
       setStep(2);
     } catch (err) {
       setError( err?.data?.message || 'Registration failed. Please try again.');
+      toast.error(err?.data?.message || 'Registration failed. Please try again.');  
       
     }
   };
@@ -123,6 +127,8 @@ const Register = () => {
       navigate('/dashboard');
     } catch (err) {
       setError(err.data?.message || 'Registration failed. Please try again.');
+      toast.error(err.data?.message || 'Registration failed. Please try again.');
+      console.error('Registration error:', err);
     }
   };
 

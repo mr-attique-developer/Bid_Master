@@ -4,6 +4,7 @@ import { MailIcon, LockIcon } from 'lucide-react';
 import { useLoginUserMutation } from '../../services/authApi';
 import { useDispatch } from 'react-redux';
 import { setCredentials } from '../../features/auth/authSlice';
+import { toast } from 'react-toastify';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -38,6 +39,9 @@ const Login = () => {
       navigate('/dashboard');
     } catch (err) {
       setError(err.data?.message || 'Login failed. Please try again.');
+      console.error('Login error:', err);
+      toast.error(err.data?.message || 'Login failed. Please try again.');
+
     }
   };
 
