@@ -28,7 +28,7 @@ const productSchema = mongoose.Schema(
     },
     bidDuration: {
       type: Number,
-      enum: [ 3, 5, 7, 10, 14, 30],
+      enum: [3, 5, 7, 10, 14, 30],
       required: [true, "Please enter your Bid duration"],
       default: 7,
     },
@@ -50,16 +50,16 @@ const productSchema = mongoose.Schema(
       required: [true, "Please enter your product category"],
       enum: [
         "electronics",
-        "clothing",
-        "furniture",
-        "toys",
+        "collectibles",
+        "fashion",
+        "home & garden",
+        "art",
+        "vehicles",
+        "toys & hobbies",
+        "jewelry",
         "books",
         "sports",
-        "jewelry",
-        "automotive",
-        "health",
-        "beauty",
-        "others",
+        "other",
       ],
       default: "others",
     },
@@ -88,7 +88,6 @@ const productSchema = mongoose.Schema(
       ref: "User",
       required: true,
     },
-
   },
   { timestamps: true }
 );

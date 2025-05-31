@@ -1,63 +1,132 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { PlusIcon, XIcon, ImageIcon } from 'lucide-react';
-import { useNotification } from '../components/ui/NotificationProvider';
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { PlusIcon, XIcon, ImageIcon } from "lucide-react";
+import { useNotification } from "../components/ui/NotificationProvider";
+import { useCreateProductMutation } from "../services/productApi";
+import { toast } from "react-toastify";
 
 const CreateAuction = () => {
   const navigate = useNavigate();
   const { addNotification } = useNotification();
   const [formData, setFormData] = useState({
-    title: '',
-    category: '',
-    condition: '',
-    description: '',
-    startingPrice: '',
-    minBidIncrement: '5',
-    duration: '7',
-    location: '',
-    shippingOptions: 'pickup'
+    title: "",
+    category: "",
+    condition: "",
+    description: "",
+    startingPrice: "",
+    minBidIncrement: "5",
+    bidDuration: "7",
+    location: "",
+    shippingOptions: "pickup",
   });
   const [images, setImages] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
-  const categories = ['Electronics', 'Collectibles', 'Fashion', 'Home & Garden', 'Art', 'Vehicles', 'Toys & Hobbies', 'Jewelry', 'Books', 'Sports', 'Other'];
-  const conditions = ['New', 'Like New', 'Used - Excellent', 'Used - Good', 'Used - Fair', 'For parts or not working'];
+  const categories = [
+    "Electronics",
+    "Collectibles",
+    "Fashion",
+    "Home & Garden",
+    "Art",
+    "Vehicles",
+    "Toys & Hobbies",
+    "Jewelry",
+    "Books",
+    "Sports",
+    "Other",
+  ];
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
-
   // Handle file input change for images
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
     if (files.length + images.length > 5) {
-      addNotification('You can upload a maximum of 5 images.', 'error');
+      addNotification("You can upload a maximum of 5 images.", "error");
       return;
     }
-    setImages(prev => [...prev, ...files]);
+    setImages((prev) => [...prev, ...files]);
     // For preview
-    const newPreviews = files.map(file => URL.createObjectURL(file));
-    setImagePreviews(prev => [...prev, ...newPreviews]);
+    const newPreviews = files.map((file) => URL.createObjectURL(file));
+    setImagePreviews((prev) => [...prev, ...newPreviews]);
   };
 
   const handleRemoveImage = (index) => {
-    setImages(prev => prev.filter((_, i) => i !== index));
-    setImagePreviews(prev => prev.filter((_, i) => i !== index));
+    setImages((prev) => prev.filter((_, i) => i !== index));
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
   };
-
-  const handleSubmit = (e) => {
+  const [createProduct, { isLoading, isSuccess, isError }] =
+    useCreateProductMutation();
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.title || !formData.category || !formData.condition || !formData.description || !formData.startingPrice || images.length === 0) {
-      addNotification('Please fill in all required fields and add at least one image', 'error');
+    console.log(formData, images);
+    if (images.length === 0) {
+      toast.error("Please upload at least one image.");
       return;
     }
-    // Here you would handle the image upload to your server or cloud storage
-    addNotification('Your auction has been created successfully!', 'success');
-    navigate('/dashboard');
+    const form = new FormData();
+    Object.entries(formData).forEach(([key, value]) => {
+      if (key === "category" || key === "condition") {
+        form.append(key, value.toLowerCase());
+      } else {
+        form.append(key, value);
+      }
+    });
+
+    images.forEach((image) => {
+      form.append("images", image);
+    });
+    try {
+      await createProduct(form).unwrap();
+      // Reset form after successful submission
+      setFormData({
+        title: "",
+        category: "",
+        condition: "",
+        description: "",
+        startingPrice: "",
+        minBidIncrement: "5",
+        bidDuration: "7",
+        location: "",
+        shippingOptions: "pickup",
+      });
+      setImages([]);
+      setImagePreviews([]);
+      toast.success("Auction created successfully!");
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("Error creating auction:", error);
+      // If error.data is HTML, show a generic message
+      if (error?.status === "PARSING_ERROR") {
+        toast.error("Server error. Please try again later. or add different images");
+      } else {
+        toast.error(error?.data?.message || "Failed to create auction.");
+      }
+      return;
+    }
   };
+  if (isSuccess) {
+    console.log(data.message); // "Product Created Successfully"
+    // Use data.product, etc.
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-2xl font-semibold mb-4">Creating Auction...</h2>
+          <p className="text-gray-600">
+            Please wait while we process your request.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  // {isError && <div className="text-red-500">{error?.data?.message || "Something went wrong."}</div>}
 
   return (
     <div className="bg-gray-50 min-h-screen w-full pb-12">
@@ -79,38 +148,89 @@ const CreateAuction = () => {
                   Basic Information
                 </h2>
                 <div className="mb-4">
-                  <label htmlFor="title" className="block mb-2 text-sm font-medium text-gray-700">
+                  <label
+                    htmlFor="title"
+                    className="block mb-2 text-sm font-medium text-gray-700"
+                  >
                     Title <span className="text-red-500">*</span>
                   </label>
-                  <input type="text" id="title" name="title" value={formData.title} onChange={handleInputChange} className="w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="e.g. Vintage Camera Collection" required />
+                  <input
+                    type="text"
+                    id="title"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="e.g. Vintage Camera Collection"
+                    required
+                  />
                 </div>
                 <div className="mb-4">
-                  <label htmlFor="category" className="block mb-2 text-sm font-medium text-gray-700">
+                  <label
+                    htmlFor="category"
+                    className="block mb-2 text-sm font-medium text-gray-700"
+                  >
                     Category <span className="text-red-500">*</span>
                   </label>
-                  <select id="category" name="category" value={formData.category} onChange={handleInputChange} className="w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500" required>
+                  <select
+                    id="category"
+                    name="category"
+                    value={formData.category}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  >
                     <option value="">Select a category</option>
-                    {categories.map(category => (
-                      <option key={category} value={category}>{category}</option>
+                    {categories.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
                     ))}
                   </select>
                 </div>
                 <div className="mb-4">
-                  <label htmlFor="condition" className="block mb-2 text-sm font-medium text-gray-700">
+                  <label
+                    htmlFor="condition"
+                    className="block mb-2 text-sm font-medium text-gray-700"
+                  >
                     Condition <span className="text-red-500">*</span>
                   </label>
-                  <select id="condition" name="condition" value={formData.condition} onChange={handleInputChange} className="w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500" required>
+                  <select
+                    id="condition"
+                    name="condition"
+                    value={formData.condition}
+                    onChange={handleInputChange}
+                    required
+                  >
                     <option value="">Select condition</option>
-                    {conditions.map(condition => (
-                      <option key={condition} value={condition}>{condition}</option>
-                    ))}
+                    <option value="new">New</option>
+                    <option value="like new">Like New</option>
+                    <option value="used">Used</option>
+                    <option value="used-excellent">Used - Excellent</option>
+                    <option value="used-good">Used - Good</option>
+                    <option value="used-fair">Used - Fair</option>
+                    <option value="for parts or not working">
+                      For parts or not working
+                    </option>
                   </select>
                 </div>
                 <div className="mb-4">
-                  <label htmlFor="description" className="block mb-2 text-sm font-medium text-gray-700">
+                  <label
+                    htmlFor="description"
+                    className="block mb-2 text-sm font-medium text-gray-700"
+                  >
                     Description <span className="text-red-500">*</span>
                   </label>
-                  <textarea id="description" name="description" value={formData.description} onChange={handleInputChange} rows={5} className="w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="Provide a detailed description of your item..." required />
+                  <textarea
+                    id="description"
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    rows={5}
+                    className="w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Provide a detailed description of your item..."
+                    required
+                  />
                 </div>
               </div>
               {/* Images and Pricing */}
@@ -126,13 +246,22 @@ const CreateAuction = () => {
                     className="mb-2"
                   />
                   <p className="text-sm text-gray-500 mb-2">
-                    Add at least one image of your item. You can add up to 5 images.
+                    Add at least one image of your item. You can add up to 5
+                    images.
                   </p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
                     {imagePreviews.map((image, index) => (
                       <div key={index} className="relative group">
-                        <img src={image} alt={`Auction image ${index + 1}`} className="w-full h-24 object-cover rounded-md" />
-                        <button type="button" onClick={() => handleRemoveImage(index)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <img
+                          src={image}
+                          alt={`Auction image ${index + 1}`}
+                          className="w-full h-24 object-cover rounded-md"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(index)}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
                           <XIcon className="w-4 h-4" />
                         </button>
                       </div>
@@ -148,22 +277,58 @@ const CreateAuction = () => {
                   Pricing & Duration
                 </h2>
                 <div className="mb-4">
-                  <label htmlFor="startingPrice" className="block mb-2 text-sm font-medium text-gray-700">
+                  <label
+                    htmlFor="startingPrice"
+                    className="block mb-2 text-sm font-medium text-gray-700"
+                  >
                     Starting Price ($) <span className="text-red-500">*</span>
                   </label>
-                  <input type="number" id="startingPrice" name="startingPrice" value={formData.startingPrice} onChange={handleInputChange} className="w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="0.00" min="0.01" step="0.01" required />
+                  <input
+                    type="number"
+                    id="startingPrice"
+                    name="startingPrice"
+                    value={formData.startingPrice}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="0.00"
+                    min="0.01"
+                    step="0.01"
+                    required
+                  />
                 </div>
                 <div className="mb-4">
-                  <label htmlFor="minBidIncrement" className="block mb-2 text-sm font-medium text-gray-700">
+                  <label
+                    htmlFor="minBidIncrement"
+                    className="block mb-2 text-sm font-medium text-gray-700"
+                  >
                     Minimum Bid Increment ($)
                   </label>
-                  <input type="number" id="minBidIncrement" name="minBidIncrement" value={formData.minBidIncrement} onChange={handleInputChange} className="w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="5.00" min="1" step="1" />
+                  <input
+                    type="number"
+                    id="minBidIncrement"
+                    name="minBidIncrement"
+                    value={formData.minBidIncrement}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="5.00"
+                    min="1"
+                    step="1"
+                  />
                 </div>
                 <div className="mb-4">
-                  <label htmlFor="duration" className="block mb-2 text-sm font-medium text-gray-700">
+                  <label
+                    htmlFor="duration"
+                    className="block mb-2 text-sm font-medium text-gray-700"
+                  >
                     Auction Duration (days)
                   </label>
-                  <select id="duration" name="duration" value={formData.duration} onChange={handleInputChange} className="w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500">
+                  <select
+                    id="duration"
+                    name="duration"
+                    value={formData.duration}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  >
                     <option value="3">3 days</option>
                     <option value="5">5 days</option>
                     <option value="7">7 days</option>
@@ -180,16 +345,37 @@ const CreateAuction = () => {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label htmlFor="location" className="block mb-2 text-sm font-medium text-gray-700">
+                  <label
+                    htmlFor="location"
+                    className="block mb-2 text-sm font-medium text-gray-700"
+                  >
                     Location <span className="text-red-500">*</span>
                   </label>
-                  <input type="text" id="location" name="location" value={formData.location} onChange={handleInputChange} className="w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="e.g. New York, NY" required />
+                  <input
+                    type="text"
+                    id="location"
+                    name="location"
+                    value={formData.location}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="e.g. New York, NY"
+                    required
+                  />
                 </div>
                 <div>
-                  <label htmlFor="shippingOptions" className="block mb-2 text-sm font-medium text-gray-700">
+                  <label
+                    htmlFor="shippingOptions"
+                    className="block mb-2 text-sm font-medium text-gray-700"
+                  >
                     Shipping Options
                   </label>
-                  <select id="shippingOptions" name="shippingOptions" value={formData.shippingOptions} onChange={handleInputChange} className="w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500">
+                  <select
+                    id="shippingOptions"
+                    name="shippingOptions"
+                    value={formData.shippingOptions}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  >
                     <option value="pickup">Local Pickup Only</option>
                     <option value="arrangement">Shipping by Arrangement</option>
                   </select>
@@ -213,7 +399,10 @@ const CreateAuction = () => {
             </div>
             {/* Submit Button */}
             <div className="flex justify-end">
-              <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md font-medium">
+              <button
+                type="submit"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md font-medium"
+              >
                 Create Auction
               </button>
             </div>
