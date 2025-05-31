@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useDeleteAccountMutation, useUpdatePasswordMutation } from '../services/authApi';
 import { toast } from 'react-toastify';
 import { Loader } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Settings = () => {
   const [formData, setFormData] = useState({
@@ -9,6 +10,7 @@ const Settings = () => {
     newPassword: '',
     confirmPassword: ''
   });
+    const navigate = useNavigate();
 
   const [
     updatePassword,
@@ -21,8 +23,10 @@ const Settings = () => {
   const [deleteAccount, {isLoading: isDeleting}] = useDeleteAccountMutation()
   const handleDeleteAccount = async()=>{
     try {
+        alert("Are you sure you want to delete your account? This action cannot be undone.");
       await deleteAccount().unwrap();
       toast.success("Account deleted successfully!");
+navigate("/login")
       // Optionally redirect to home or login page
     } catch (err) {
       console.error("Failed to delete account:", err);

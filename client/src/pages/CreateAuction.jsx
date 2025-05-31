@@ -2,11 +2,10 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PlusIcon, XIcon, ImageIcon } from 'lucide-react';
 import { useNotification } from '../components/ui/NotificationProvider';
+
 const CreateAuction = () => {
   const navigate = useNavigate();
-  const {
-    addNotification
-  } = useNotification();
+  const { addNotification } = useNotification();
   const [formData, setFormData] = useState({
     title: '',
     category: '',
@@ -18,44 +17,50 @@ const CreateAuction = () => {
     location: '',
     shippingOptions: 'pickup'
   });
-  const [images, setImages] = useState<string[]>([]);
-  const [imageInput, setImageInput] = useState('');
+  const [images, setImages] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
   const categories = ['Electronics', 'Collectibles', 'Fashion', 'Home & Garden', 'Art', 'Vehicles', 'Toys & Hobbies', 'Jewelry', 'Books', 'Sports', 'Other'];
   const conditions = ['New', 'Like New', 'Used - Excellent', 'Used - Good', 'Used - Fair', 'For parts or not working'];
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const {
-      name,
-      value
-    } = e.target;
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
   };
-  const handleAddImage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!imageInput) return;
-    // In a real app, this would upload the image to a server
-    // Here we're just simulating by adding the URL directly
-    setImages(prev => [...prev, imageInput]);
-    setImageInput('');
+
+  // Handle file input change for images
+  const handleImageChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length + images.length > 5) {
+      addNotification('You can upload a maximum of 5 images.', 'error');
+      return;
+    }
+    setImages(prev => [...prev, ...files]);
+    // For preview
+    const newPreviews = files.map(file => URL.createObjectURL(file));
+    setImagePreviews(prev => [...prev, ...newPreviews]);
   };
-  const handleRemoveImage = (index: number) => {
+
+  const handleRemoveImage = (index) => {
     setImages(prev => prev.filter((_, i) => i !== index));
+    setImagePreviews(prev => prev.filter((_, i) => i !== index));
   };
-  const handleSubmit = (e: React.FormEvent) => {
+
+  const handleSubmit = (e) => {
     e.preventDefault();
-    // Validate form
     if (!formData.title || !formData.category || !formData.condition || !formData.description || !formData.startingPrice || images.length === 0) {
       addNotification('Please fill in all required fields and add at least one image', 'error');
       return;
     }
-    // In a real app, this would send the data to an API
+    // Here you would handle the image upload to your server or cloud storage
     addNotification('Your auction has been created successfully!', 'success');
-    // Navigate to the dashboard
     navigate('/dashboard');
   };
-  return <div className="bg-gray-50 min-h-screen w-full pb-12">
+
+  return (
+    <div className="bg-gray-50 min-h-screen w-full pb-12">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="mb-6">
           <Link to="/dashboard" className="text-blue-600 hover:underline">
@@ -85,9 +90,9 @@ const CreateAuction = () => {
                   </label>
                   <select id="category" name="category" value={formData.category} onChange={handleInputChange} className="w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500" required>
                     <option value="">Select a category</option>
-                    {categories.map(category => <option key={category} value={category}>
-                        {category}
-                      </option>)}
+                    {categories.map(category => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="mb-4">
@@ -96,9 +101,9 @@ const CreateAuction = () => {
                   </label>
                   <select id="condition" name="condition" value={formData.condition} onChange={handleInputChange} className="w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500" required>
                     <option value="">Select condition</option>
-                    {conditions.map(condition => <option key={condition} value={condition}>
-                        {condition}
-                      </option>)}
+                    {conditions.map(condition => (
+                      <option key={condition} value={condition}>{condition}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="mb-4">
@@ -112,26 +117,31 @@ const CreateAuction = () => {
               <div>
                 <h2 className="text-lg font-semibold mb-4">Images</h2>
                 <div className="mb-6">
-                  <div className="flex mb-2">
-                    <input type="text" value={imageInput} onChange={e => setImageInput(e.target.value)} className="flex-grow px-4 py-2 border rounded-l-md focus:ring-blue-500 focus:border-blue-500" placeholder="Enter image URL" />
-                    <button onClick={handleAddImage} type="button" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-r-md">
-                      <PlusIcon className="w-5 h-5" />
-                    </button>
-                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImageChange}
+                    disabled={images.length >= 5}
+                    className="mb-2"
+                  />
                   <p className="text-sm text-gray-500 mb-2">
-                    Add at least one image of your item. You can add up to 5
-                    images.
+                    Add at least one image of your item. You can add up to 5 images.
                   </p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
-                    {images.map((image, index) => <div key={index} className="relative group">
+                    {imagePreviews.map((image, index) => (
+                      <div key={index} className="relative group">
                         <img src={image} alt={`Auction image ${index + 1}`} className="w-full h-24 object-cover rounded-md" />
                         <button type="button" onClick={() => handleRemoveImage(index)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <XIcon className="w-4 h-4" />
                         </button>
-                      </div>)}
-                    {images.length < 5 && <div className="w-full h-24 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center text-gray-400">
+                      </div>
+                    ))}
+                    {images.length < 5 && (
+                      <div className="w-full h-24 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center text-gray-400">
                         <ImageIcon className="w-8 h-8" />
-                      </div>}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <h2 className="text-lg font-semibold mb-4 mt-8">
@@ -210,6 +220,8 @@ const CreateAuction = () => {
           </form>
         </div>
       </div>
-    </div>;
+    </div>
+  );
 };
+
 export default CreateAuction;

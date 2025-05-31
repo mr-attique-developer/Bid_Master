@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { MailIcon, LockIcon } from 'lucide-react';
 import { useLoginUserMutation } from '../../services/authApi';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { setCredentials } from '../../features/auth/authSlice';
 import { toast } from 'react-toastify';
 
@@ -12,7 +12,8 @@ const Login = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const dispatch = useDispatch();
-
+  const { user } = useSelector((state) => state.auth);
+  console.log(user)
   // RTK Query login mutation
   const [loginUser, { isLoading }] = useLoginUserMutation();
 

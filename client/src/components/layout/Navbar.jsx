@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BellIcon, MessageSquareIcon, UserIcon, MenuIcon, XIcon } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useLogoutUserMutation } from '../../services/authApi';
-import { logout } from '../../features/auth/authSlice';
+import { logout, setCredentials } from '../../features/auth/authSlice';
 
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -11,6 +11,17 @@ const Navbar = () => {
   const dispatch = useDispatch();
   const { token, user } = useSelector((state) => state.auth);
   const [logoutUser] = useLogoutUserMutation();
+   useEffect(() => {
+    if (!token || !user) {
+      const storedToken = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
+      if (storedToken && storedUser) {
+        dispatch(setCredentials({token: storedToken, user: JSON.parse(storedUser)}));
+      }
+    }
+  }, [token, user, dispatch]);
+  console.log(user)
+  console.log(token)
 
   const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
   const toggleNotifications = () => setNotificationsOpen(!notificationsOpen);
@@ -51,7 +62,7 @@ const Navbar = () => {
           </Link>
           
           <div className="hidden md:flex items-center space-x-6">
-            {token && (
+            {user?.role === "seller" || user?.role === "both" && (
               <>
                 <Link to="/dashboard" className="text-gray-700 hover:text-blue-600">
                   Dashboard
@@ -160,7 +171,7 @@ const Navbar = () => {
               Home
             </Link>
             
-            {token ? (
+            {user?.role  === "seller" || user?.role === "both" ? (
               <>
                 <Link 
                   to="/dashboard" 
@@ -169,36 +180,18 @@ const Navbar = () => {
                 >
                   Dashboard
                 </Link>
-                <Link 
+              
+           
+              
+              
+              <Link 
                   to="/create-auction" 
                   className="block py-2 px-4 text-gray-700 hover:bg-gray-100 rounded-md"
                   onClick={toggleMobileMenu}
                 >
                   Create Auction
                 </Link>
-                <Link 
-                  to="/chat" 
-                  className="block py-2 px-4 text-gray-700 hover:bg-gray-100 rounded-md"
-                  onClick={toggleMobileMenu}
-                >
-                  Messages
-                </Link>
-                <Link 
-                  to="/profile" 
-                  className="block py-2 px-4 text-gray-700 hover:bg-gray-100 rounded-md"
-                  onClick={toggleMobileMenu}
-                >
-                  Profile
-                </Link>
-                <button 
-                  onClick={() => {
-                    handleLogout();
-                    toggleMobileMenu();
-                  }}
-                  className="w-full text-left py-2 px-4 text-gray-700 hover:bg-gray-100 rounded-md"
-                >
-                  Logout
-                </button>
+               
               </>
             ) : (
               <>

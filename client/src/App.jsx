@@ -1,32 +1,35 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
-import { useGetUserProfileQuery } from './services/authApi';
-import Navbar from './components/layout/Navbar';
-import Footer from './components/layout/Footer';
-import Home from './pages/Home';
-import Dashboard from './pages/Dashboard';
-import AuctionDetail from './pages/AuctionDetail';
-import CreateAuction from './pages/CreateAuction';
-import Profile from './pages/Profile';
-import Chat from './pages/Chat';
-import Login from './components/auth/Login';
-import Register from './components/auth/Register';
-import NotificationProvider from './components/ui/NotificationProvider';
-import LoadingSpinner from './components/LoadingSpinner';
-// import { logout } from './features/auth/authSlice';
+import React, { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useSelector, useDispatch } from "react-redux";
+import { useGetUserProfileQuery } from "./services/authApi";
+import Navbar from "./components/layout/Navbar";
+import Footer from "./components/layout/Footer";
+import Home from "./pages/Home";
+import Dashboard from "./pages/Dashboard";
+import AuctionDetail from "./pages/AuctionDetail";
+import CreateAuction from "./pages/CreateAuction";
+import Profile from "./pages/Profile";
+import Chat from "./pages/Chat";
+import Login from "./components/auth/Login";
+import Register from "./components/auth/Register";
+import NotificationProvider from "./components/ui/NotificationProvider";
+import LoadingSpinner from "./components/LoadingSpinner";
+import { setCredentials } from "./features/auth/authSlice";
+import GuestRoute from "./components/GuestRoutes";
+import ProtectedRoute from "./components/ProtectedRoutes";
 
 export function App() {
   const dispatch = useDispatch();
   // Get auth state from Redux
-  const { token } = useSelector((state) => state.auth);
-  
-  // Auto-fetch user profile if token exists
-  const { isLoading, isError } = useGetUserProfileQuery(undefined, {
-    skip: !token, // Only run if token exists
-    refetchOnMountOrArgChange: true
-  });
+  const { token, user } = useSelector((state) => state.auth);
 
+  useEffect(() => {
+    const storedToken = localStorage.getItem("token");
+    if (storedToken && !token) {
+      dispatch(setCredentials({ token: storedToken, user: null }));
+    }
+  }, [token, dispatch]);
+  const { isLoading } = useGetUserProfileQuery();
 
   if (isLoading) {
     return (
@@ -40,39 +43,37 @@ export function App() {
     <BrowserRouter>
       <NotificationProvider>
         <div className="flex flex-col min-h-screen bg-gray-50">
-          <Navbar  />
+          <Navbar />
           <main className="flex-grow">
             <Routes>
               {/* Public routes */}
               <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              
+              <Route element={<GuestRoute />}>
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+              </Route>
+
               {/* Protected routes */}
-              <Route 
-                path="/dashboard" 
-                element={token ? <Dashboard /> : <Navigate to="/login" replace />} 
-              />
-              <Route 
-                path="/auction/:id" 
-                element={<AuctionDetail />} 
-              />
-              <Route 
-                path="/create-auction" 
-                element={token ? <CreateAuction /> : <Navigate to="/login" replace />} 
-              />
-              <Route 
-                path="/profile" 
-                element={token ? <Profile /> : <Navigate to="/login" replace />} 
-              />
-              <Route 
-                path="/chat" 
-                element={token ? <Chat /> : <Navigate to="/login" replace />} 
-              />
-              <Route 
-                path="/chat/:userId" 
-                element={token ? <Chat /> : <Navigate to="/login" replace />} 
-              />
+              <Route element={<ProtectedRoute />}>
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/create-auction" element={<CreateAuction />} />
+                <Route path="/auction/:id" element={<AuctionDetail />} />
+
+                <Route
+                  path="/profile"
+                  element={
+                    token ? <Profile /> : <Navigate to="/login" replace />
+                  }
+                />
+                <Route
+                  path="/chat"
+                  element={token ? <Chat /> : <Navigate to="/login" replace />}
+                />
+                <Route
+                  path="/chat/:userId"
+                  element={token ? <Chat /> : <Navigate to="/login" replace />}
+                />
+              </Route>
             </Routes>
           </main>
           <Footer />

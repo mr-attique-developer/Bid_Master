@@ -12,7 +12,7 @@ import {
   useGetUserProfileQuery,
   useUpdateUserProfileMutation,
 } from "../services/authApi";
-import MemberDate from "../components/utility/MemberDate";
+import MemberDate from "../utility/MemberDate";
 import { toast } from "react-toastify";
 import Settings from "./Settings";
 

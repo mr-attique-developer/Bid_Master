@@ -112,8 +112,8 @@ const Register = () => {
         role: formData.role,
         phone: formData.phone,
         location: formData.location,
-        businessName: formData.businessName,
-        businessDescription: formData.businessDescription,
+        businessName:role === "buyer" ? undefined : formData.businessName,
+        businessDescription: role === "buyer" ? undefined :  formData.businessDescription,
         taxId: formData.taxId
       }).unwrap();
 

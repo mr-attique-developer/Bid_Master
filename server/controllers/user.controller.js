@@ -90,13 +90,21 @@ try {
     const userId = req.user._id
     // console.log(userId)
     const { businessName, businessDescription, location, role,phone} = req.body
-    if(!phone || !businessName || !businessDescription || !location || !role){
+ if (role === "buyer") {
+    if (!phone || !location || !role) {
         return res.status(400).json({
             success: false,
-            message: "Please fill all the fields,,,, ",
-        })
-        
+            message: "Please fill all the fields.",
+        });
     }
+} else {
+    if (!phone || !businessName || !businessDescription || !location || !role) {
+        return res.status(400).json({
+            success: false,
+            message: "Please fill all the fields.",
+        });
+    }
+}
     const cleanPhoneDigit =  phone.replace(/\D/g, '');
     const phoneRegex = /^(0[3][0-9]{9}|92[3][0-9]{9})$/;
     if (!phoneRegex.test(cleanPhoneDigit)) {

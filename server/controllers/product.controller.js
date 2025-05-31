@@ -36,7 +36,7 @@ export const createProduct = async (req, res) => {
         .json({ success: false, message: "Please upload at least one image" });
     }
     const sellerId = req.user._id;
-    console.log("Seller Id ", sellerId);
+    // console.log("Seller Id ", sellerId);
     const image = req.files.map((file) => ({
       url: file.path,
       public_id: file.filename,

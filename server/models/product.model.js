@@ -28,6 +28,7 @@ const productSchema = mongoose.Schema(
     },
     bidDuration: {
       type: Number,
+      enum: [ 3, 5, 7, 10, 14, 30],
       required: [true, "Please enter your Bid duration"],
       default: 7,
     },
