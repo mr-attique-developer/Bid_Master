@@ -11,35 +11,7 @@ const Dashboard = () => {
   const {data, isLoading} = useGetAllProductsQuery()
   console.log(data)
   const products = data?.products || [];
-  // const auctions = [
-  //   {
-  //     id: 1,
-  //     title: "Vintage Camera Collection",
-  //     image:
-  //       "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-  //     currentBid: 450,
-  //     timeLeft: "2 days",
-  //     bids: 12,
-  //     seller: "JohnDoe",
-  //     category: "Electronics",
-  //     isOwner: false,
-  //     hasBid: true,
-  //   },
-  //   {
-  //     id: 2,
-  //     title: "Antique Wooden Desk",
-  //     image:
-  //       "https://images.unsplash.com/photo-1518893494013-481c1d8ed3fd?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-  //     currentBid: 850,
-  //     timeLeft: "5 hours",
-  //     bids: 24,
-  //     seller: "AntiquesLover",
-  //     category: "Furniture",
-  //     isOwner: false,
-  //     hasBid: false,
-  //   },
-  // ];
-
+  
   const filteredAuctions = products.filter((auction) => {
     if (activeTab === "all") return true;
     if (activeTab === "mybids") return auction.seller;
@@ -173,7 +145,7 @@ const Dashboard = () => {
                   </div>
                   <div className="p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-medium bg-blue-100 text-blue-600 px-2 py-1 rounded">
+                      <span className="text-xs font-medium bg-blue-100 text-blue-600 px-2 py-1 rounded capitalize">
                         {auction.category}
                       </span>
                       {auction.seller && (
@@ -231,7 +203,7 @@ const Dashboard = () => {
                     <div className="p-4 flex-grow">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center space-x-2">
-                          <span className="text-xs font-medium bg-blue-100 text-blue-600 px-2 py-1 rounded">
+                          <span className="text-xs font-medium bg-blue-100 text-blue-600 px-2 py-1 rounded capitalize">
                             {auction.category}
                           </span>
                           {auction.seller && (
@@ -253,7 +225,7 @@ const Dashboard = () => {
                         {auction.title}
                       </h3>
                       <p className="text-sm text-gray-600 mb-4">
-                        Seller: {auction.seller}
+                        Seller: {auction.seller?.fullName}
                       </p>
                       <div className="flex justify-between items-center">
                         <div>

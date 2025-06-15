@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { SearchIcon, TrendingUpIcon, ShieldCheckIcon, MessageSquareIcon } from 'lucide-react';
 import { useSelector } from 'react-redux';
@@ -15,6 +15,7 @@ const Home = () => {
       image: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
       currentBid: 450,
       timeLeft: '2 days',
+      category: "eletronics",
       bids: 12
     },
     {
@@ -23,6 +24,7 @@ const Home = () => {
       image: 'https://images.unsplash.com/photo-1518893494013-481c1d8ed3fd?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
       currentBid: 850,
       timeLeft: '5 hours',
+      category: "furniture",
       bids: 24
     },
     {
@@ -30,6 +32,7 @@ const Home = () => {
       title: 'Luxury Wristwatch',
       image: 'https://images.unsplash.com/photo-1523170335258-f5ed11844a49?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
       currentBid: 1200,
+      category: "jewelry",
       timeLeft: '1 day',
       bids: 18
     },
@@ -39,9 +42,21 @@ const Home = () => {
       image: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
       currentBid: 750,
       timeLeft: '3 days',
+      category: "art",
       bids: 9
     }
   ];
+
+
+    const [categoryFilter, setCategoryFilter] = useState('all');
+
+  // Get unique categories for filter buttons
+  const categories = ['all', ...new Set(featuredAuctions.map(a => a.category))];
+
+  // Filter auctions based on selected category
+  const filteredAuctions = categoryFilter === 'all'
+    ? featuredAuctions
+    : featuredAuctions.filter(a => a.category === categoryFilter);
 
   return (
     <div className="bg-white w-full">
@@ -109,22 +124,34 @@ const Home = () => {
               </button>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
+
               <span className="text-sm text-gray-600">Popular:</span>
-              <a href="#" className="text-sm text-blue-600 hover:underline">
+                <div className="flex justify-center gap-2 mb-8 flex-wrap">
+            {categories.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setCategoryFilter(cat)}
+                className={`text-sm hover:cursor-pointer text-blue-600 hover:underline ${categoryFilter === cat ? 'underline' : ''} transition`}
+              >
+                {cat.charAt(0).toUpperCase() + cat.slice(1)}
+              </button>
+            ))}
+          </div>
+              {/* <p className="text-sm hover:cursor-pointer text-blue-600 hover:underline">
                 Electronics
-              </a>
-              <a href="#" className="text-sm text-blue-600 hover:underline">
+              </p>
+              <p className="text-sm hover:cursor-pointer text-blue-600 hover:underline">
                 Antiques
-              </a>
-              <a href="#" className="text-sm text-blue-600 hover:underline">
+              </p>
+              <p className="text-sm hover:cursor-pointer text-blue-600 hover:underline">
                 Collectibles
-              </a>
-              <a href="#" className="text-sm text-blue-600 hover:underline">
+              </p>
+              <p className="text-sm hover:cursor-pointer text-blue-600 hover:underline">
                 Jewelry
-              </a>
-              <a href="#" className="text-sm text-blue-600 hover:underline">
+              </p>
+              <p className="text-sm hover:cursor-pointer text-blue-600 hover:underline">
                 Art
-              </a>
+              </p> */}
             </div>
           </div>
         </div>
@@ -140,8 +167,10 @@ const Home = () => {
               Discover our most popular active auctions
             </p>
           </div>
+             {/* Filter Buttons */}
+        
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {featuredAuctions.map(auction => (
+             {filteredAuctions.map(auction => (
               <Link to={`/auction/${auction.id}`} key={auction.id} className="group">
                 <div className="bg-white rounded-lg shadow-md overflow-hidden transition-transform group-hover:-translate-y-1">
                   <div className="h-48 overflow-hidden">

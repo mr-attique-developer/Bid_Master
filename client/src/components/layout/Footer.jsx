@@ -1,7 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+
 const Footer = () => {
-  return <footer className="bg-gray-800 text-white py-8">
+  return (
+    <footer className="bg-gray-800 text-white py-8">
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
@@ -78,6 +80,8 @@ const Footer = () => {
           </p>
         </div>
       </div>
-    </footer>;
+    </footer>
+  );
 };
-export default Footer;
+
+export default Footer

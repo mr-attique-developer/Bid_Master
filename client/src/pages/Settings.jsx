@@ -3,6 +3,8 @@ import { useDeleteAccountMutation, useUpdatePasswordMutation } from '../services
 import { toast } from 'react-toastify';
 import { Loader } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { logout } from '../features/auth/authSlice';
 
 const Settings = () => {
   const [formData, setFormData] = useState({
@@ -11,6 +13,7 @@ const Settings = () => {
     confirmPassword: ''
   });
     const navigate = useNavigate();
+    const dispatch = useDispatch();
 
   const [
     updatePassword,
@@ -26,6 +29,7 @@ const Settings = () => {
         alert("Are you sure you want to delete your account? This action cannot be undone.");
       await deleteAccount().unwrap();
       toast.success("Account deleted successfully!");
+      dispatch(logout())
 navigate("/login")
       // Optionally redirect to home or login page
     } catch (err) {

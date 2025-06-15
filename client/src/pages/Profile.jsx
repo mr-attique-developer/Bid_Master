@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { logout } from "../features/auth/authSlice";
 import {
   UserIcon,
   SettingsIcon,
@@ -10,14 +11,18 @@ import {
 } from "lucide-react";
 import {
   useGetUserProfileQuery,
+  useLogoutUserMutation,
   useUpdateUserProfileMutation,
 } from "../services/authApi";
 import MemberDate from "../utility/MemberDate";
 import { toast } from "react-toastify";
 import Settings from "./Settings";
+import { useDispatch } from "react-redux";
 
 const Profile = () => {
   const [activeTab, setActiveTab] = useState("profile");
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -93,6 +98,18 @@ const Profile = () => {
     );
   }
   const user = data?.user || {};
+  const [logoutUser] = useLogoutUserMutation();
+  const handleLogout = async () => {
+    try {
+      await logoutUser().unwrap();
+
+      dispatch(logout());
+      navigate("/login");
+      toast.success("Logged out successfully!");
+    } catch (err) {
+      console.error("Failed to logout:", err);
+    }
+  };
   return (
     <div className="bg-gray-50 min-h-screen w-full pb-12">
       <div className="container mx-auto m-4 py-8 max-w-6xl">
@@ -106,7 +123,9 @@ const Profile = () => {
                   <UserIcon className="h-10 w-10" />
                 </div>
                 <h2 className="text-xl font-semibold">{formData.fullName}</h2>
-                <p className="text-gray-500 text-sm"><MemberDate timestamp={user?.createdAt}/></p>
+                <p className="text-gray-500 text-sm">
+                  <MemberDate timestamp={user?.createdAt} />
+                </p>
               </div>
               <nav className="p-2">
                 <button
@@ -160,13 +179,13 @@ const Profile = () => {
                   <UserIcon className="h-5 w-5 mr-3" />
                   Messages
                 </Link>
-                <Link
-                  to="/"
+                <button
+                  onClick={handleLogout}
                   className="flex items-center w-full px-4 py-2 rounded-md text-left text-gray-700 hover:bg-gray-50"
                 >
                   <LogOutIcon className="h-5 w-5 mr-3" />
                   Sign Out
-                </Link>
+                </button>
               </nav>
             </div>
           </div>
@@ -594,9 +613,7 @@ const Profile = () => {
               </div>
             )} */}
             {/* Settings Tab */}
-            {activeTab === "settings" && (
-              <Settings/>
-            )}
+            {activeTab === "settings" && <Settings />}
           </div>
         </div>
       </div>
