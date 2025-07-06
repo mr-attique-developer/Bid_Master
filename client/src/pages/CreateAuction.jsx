@@ -281,7 +281,7 @@ const CreateAuction = () => {
                     htmlFor="startingPrice"
                     className="block mb-2 text-sm font-medium text-gray-700"
                   >
-                    Starting Price ($) <span className="text-red-500">*</span>
+                    Starting Price (₨) <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"
@@ -301,7 +301,7 @@ const CreateAuction = () => {
                     htmlFor="minBidIncrement"
                     className="block mb-2 text-sm font-medium text-gray-700"
                   >
-                    Minimum Bid Increment ($)
+                    Minimum Bid Increment (₨)
                   </label>
                   <input
                     type="number"

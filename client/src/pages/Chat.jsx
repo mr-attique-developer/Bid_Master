@@ -35,7 +35,7 @@ const Chat = () => {
       messages: [
         { id: 1, sender: 'other', text: 'Hi, I saw your listing for the antique desk. Is the price negotiable?', time: 'Yesterday' },
         { id: 2, sender: 'me', text: 'Hello! I might be flexible on the price. What were you thinking?', time: 'Yesterday' },
-        { id: 3, sender: 'other', text: 'I was thinking around $750 instead of $850', time: 'Yesterday' },
+        { id: 3, sender: 'other', text: 'I was thinking around ₨750 instead of ₨850', time: 'Yesterday' },
         { id: 4, sender: 'other', text: 'The desk looks beautiful but I noticed some wear on the top in the photos', time: 'Yesterday' }
       ]
     },

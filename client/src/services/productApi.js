@@ -17,13 +17,29 @@ export const productApi = createApi({
       invalidatesTags:["Product"]
     }),
     getAllProducts: builder.query({
-        query: ()=>({
-            url: "/product/getAllProducts",
-            method: "GET",
-        }),
+        query: (params = {}) => {
+            const { search, category } = params;
+            const queryParams = new URLSearchParams();
+            
+            if (search) queryParams.append('search', search);
+            if (category && category !== 'all') queryParams.append('category', category);
+            
+            return {
+                url: `/product/getAllProducts${queryParams.toString() ? `?${queryParams}` : ''}`,
+                method: "GET",
+            };
+        },
         providesTags:["Product"]
+    }),
+    getSingleProduct:builder.query({
+      query: (id) => ({
+        url: `/product/getProduct/${id}`,
+        method: "GET",
+      }),
+      providesTags:["Product"]
     })
   }),
+  
 });
 
-export const { useCreateProductMutation, useGetAllProductsQuery } = productApi;
+export const { useCreateProductMutation, useGetAllProductsQuery, useGetSingleProductQuery } = productApi;

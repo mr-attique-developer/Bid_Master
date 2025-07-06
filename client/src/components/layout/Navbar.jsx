@@ -20,8 +20,6 @@ const Navbar = () => {
       }
     }
   }, [token, user, dispatch]);
-  console.log(user)
-  console.log(token)
 
   const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
   const toggleNotifications = () => setNotificationsOpen(!notificationsOpen);

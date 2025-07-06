@@ -296,7 +296,7 @@ const Profile = () => {
                     <div className="bg-purple-50 p-4 rounded-md">
                       <p className="text-sm text-gray-600">Total Spent</p>
                       <p className="text-2xl font-bold text-purple-600">
-                        $2,400
+                        ₨2,400
                       </p>
                     </div>
                   </div>
@@ -340,10 +340,10 @@ const Profile = () => {
                             </div>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
-                            $450
+                            ₨450
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
-                            $450
+                            ₨450
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-500">
                             2 days left
@@ -371,10 +371,10 @@ const Profile = () => {
                             </div>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
-                            $1,150
+                            ₨1,150
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
-                            $1,200
+                            ₨1,200
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-500">
                             1 day left
@@ -421,7 +421,7 @@ const Profile = () => {
                               </div>
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
-                              ${transaction.amount}
+                              ₨{transaction.amount}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-500">
                               {transaction.date}
@@ -458,7 +458,7 @@ const Profile = () => {
                     <div className="bg-purple-50 p-4 rounded-md">
                       <p className="text-sm text-gray-600">Total Earned</p>
                       <p className="text-2xl font-bold text-purple-600">
-                        $1,600
+                        ₨1,600
                       </p>
                     </div>
                   </div>
@@ -507,7 +507,7 @@ const Profile = () => {
                             </div>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
-                            $750
+                            ₨750
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
                             9
@@ -538,7 +538,7 @@ const Profile = () => {
                             </div>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
-                            $550
+                            ₨550
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
                             15
@@ -591,7 +591,7 @@ const Profile = () => {
                               </div>
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
-                              ${transaction.amount}
+                              ₨{transaction.amount}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
                               User#{transaction.id + 100}

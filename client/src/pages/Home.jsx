@@ -1,62 +1,82 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { SearchIcon, TrendingUpIcon, ShieldCheckIcon, MessageSquareIcon } from 'lucide-react';
 import { useSelector } from 'react-redux';
+import { useGetAllProductsQuery } from '../services/productApi';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const Home = () => {
-  // Replace this with your actual user state from Redux or Context
-  const {token , user} = useSelector((state) => state.auth);
+  const { isAuthenticated , user} = useSelector((state) => state.auth);
+  
+  const { data: productsResponse, isLoading, isError } = useGetAllProductsQuery();
+  
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
 
-  // Sample featured auctions
-  const featuredAuctions = [
-    {
-      id: 1,
-      title: 'Vintage Camera Collection',
-      image: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
-      currentBid: 450,
-      timeLeft: '2 days',
-      category: "eletronics",
-      bids: 12
-    },
-    {
-      id: 2,
-      title: 'Antique Wooden Desk',
-      image: 'https://images.unsplash.com/photo-1518893494013-481c1d8ed3fd?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
-      currentBid: 850,
-      timeLeft: '5 hours',
-      category: "furniture",
-      bids: 24
-    },
-    {
-      id: 3,
-      title: 'Luxury Wristwatch',
-      image: 'https://images.unsplash.com/photo-1523170335258-f5ed11844a49?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
-      currentBid: 1200,
-      category: "jewelry",
-      timeLeft: '1 day',
-      bids: 18
-    },
-    {
-      id: 4,
-      title: 'Modern Art Painting',
-      image: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
-      currentBid: 750,
-      timeLeft: '3 days',
-      category: "art",
-      bids: 9
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const transformProducts = (products) => {
+    if (!products) return [];
+    return products.map(product => ({
+      id: product._id,
+      title: product.title,
+      image: product.image?.[0]?.url || 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
+      currentBid: product.currentBid || product.startingPrice,
+      category: product.category?.toLowerCase() || 'other',
+      timeLeft: calculateTimeLeft(product.endsAt),
+      bids: product.bids?.length || 0,
+      status: product.status
+    }));
+  };
+
+  const calculateTimeLeft = (endsAt) => {
+    if (!endsAt) return 'No end date';
+    
+    const now = new Date();
+    const endDate = new Date(endsAt);
+    const timeDiff = endDate - now;
+    
+    if (timeDiff <= 0) return 'Ended';
+    
+    const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    
+    if (days > 0) return `${days} day${days > 1 ? 's' : ''}`;
+    if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''}`;
+    return 'Less than 1 hour';
+  };
+
+  const allProducts = transformProducts(productsResponse?.products || []);
+
+  const filteredProducts = useMemo(() => {
+    let filtered = allProducts;
+
+    if (debouncedSearchTerm.trim()) {
+      filtered = filtered.filter(product =>
+        product.title.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+      );
     }
-  ];
 
+    if (categoryFilter !== 'all') {
+      filtered = filtered.filter(product => product.category === categoryFilter);
+    }
 
-    const [categoryFilter, setCategoryFilter] = useState('all');
+    filtered = filtered.filter(product => product.status === 'listed');
 
-  // Get unique categories for filter buttons
-  const categories = ['all', ...new Set(featuredAuctions.map(a => a.category))];
+    return filtered;
+  }, [allProducts, debouncedSearchTerm, categoryFilter]);
 
-  // Filter auctions based on selected category
-  const filteredAuctions = categoryFilter === 'all'
-    ? featuredAuctions
-    : featuredAuctions.filter(a => a.category === categoryFilter);
+  const categories = useMemo(() => {
+    const uniqueCategories = [...new Set(allProducts.map(p => p.category))];
+    return ['all', ...uniqueCategories];
+  }, [allProducts]);
 
   return (
     <div className="bg-white w-full">
@@ -116,42 +136,31 @@ const Home = () => {
                 <input
                   type="text"
                   placeholder="Search for auctions..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 w-full px-4 py-3 border rounded-md focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
-              <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md font-medium">
-                Search
+              <button 
+                onClick={() => setSearchTerm('')}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md font-medium"
+              >
+                Clear
               </button>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
-
-              <span className="text-sm text-gray-600">Popular:</span>
-                <div className="flex justify-center gap-2 mb-8 flex-wrap">
-            {categories.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setCategoryFilter(cat)}
-                className={`text-sm hover:cursor-pointer text-blue-600 hover:underline ${categoryFilter === cat ? 'underline' : ''} transition`}
-              >
-                {cat.charAt(0).toUpperCase() + cat.slice(1)}
-              </button>
-            ))}
-          </div>
-              {/* <p className="text-sm hover:cursor-pointer text-blue-600 hover:underline">
-                Electronics
-              </p>
-              <p className="text-sm hover:cursor-pointer text-blue-600 hover:underline">
-                Antiques
-              </p>
-              <p className="text-sm hover:cursor-pointer text-blue-600 hover:underline">
-                Collectibles
-              </p>
-              <p className="text-sm hover:cursor-pointer text-blue-600 hover:underline">
-                Jewelry
-              </p>
-              <p className="text-sm hover:cursor-pointer text-blue-600 hover:underline">
-                Art
-              </p> */}
+              <span className="text-sm text-gray-600">Categories:</span>
+              <div className="flex justify-center gap-2 mb-8 flex-wrap">
+                {categories.map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setCategoryFilter(cat)}
+                    className={`text-sm hover:cursor-pointer text-blue-600 hover:underline ${categoryFilter === cat ? 'underline font-semibold' : ''} transition`}
+                  >
+                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -161,55 +170,108 @@ const Home = () => {
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-800">
-              Featured Auctions
+              {debouncedSearchTerm ? `Search Results for "${debouncedSearchTerm}"` : 'Featured Auctions'}
             </h2>
             <p className="text-gray-600 mt-2">
-              Discover our most popular active auctions
+              {debouncedSearchTerm 
+                ? `Found ${filteredProducts.length} auction${filteredProducts.length !== 1 ? 's' : ''}`
+                : 'Discover our most popular active auctions'
+              }
             </p>
           </div>
-             {/* Filter Buttons */}
-        
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-             {filteredAuctions.map(auction => (
-              <Link to={`/auction/${auction.id}`} key={auction.id} className="group">
-                <div className="bg-white rounded-lg shadow-md overflow-hidden transition-transform group-hover:-translate-y-1">
-                  <div className="h-48 overflow-hidden">
-                    <img
-                      src={auction.image}
-                      alt={auction.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-semibold text-lg text-gray-800 mb-2">
-                      {auction.title}
-                    </h3>
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="text-sm text-gray-500">Current Bid</p>
-                        <p className="text-blue-600 font-bold">
-                          ${auction.currentBid}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-gray-500">
-                          {auction.bids} bids
-                        </p>
-                        <p className="text-red-500 font-medium">
-                          {auction.timeLeft} left
-                        </p>
+
+          {/* Loading State */}
+          {isLoading && (
+            <div className="flex justify-center items-center py-12">
+              <LoadingSpinner size="lg" />
+            </div>
+          )}
+
+          {/* Error State */}
+          {isError && (
+            <div className="text-center py-12">
+              <p className="text-red-600 mb-4">Failed to load auctions</p>
+              <p className="text-gray-600">Please try again later</p>
+            </div>
+          )}
+
+          {/* No Results */}
+          {!isLoading && !isError && filteredProducts.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-gray-600 text-lg mb-4">
+                {debouncedSearchTerm || categoryFilter !== 'all' 
+                  ? 'No auctions found matching your criteria' 
+                  : 'No active auctions available'
+                }
+              </p>
+              {(debouncedSearchTerm || categoryFilter !== 'all') && (
+                <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setCategoryFilter('all');
+                  }}
+                  className="text-blue-600 hover:underline"
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Products Grid */}
+          {!isLoading && !isError && filteredProducts.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+              {filteredProducts.map(auction => (
+                <Link to={`/auction/${auction.id}`} key={auction.id} className="group">
+                  <div className="bg-white rounded-lg shadow-md overflow-hidden transition-transform group-hover:-translate-y-1">
+                    <div className="h-48 overflow-hidden">
+                      <img
+                        src={auction.image}
+                        alt={auction.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          e.target.src = 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80';
+                        }}
+                      />
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-semibold text-lg text-gray-800 mb-2 line-clamp-2">
+                        {auction.title}
+                      </h3>
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-sm text-gray-500">Current Bid</p>
+                          <p className="text-blue-600 font-bold">
+                            ₨ {auction.currentBid}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-gray-500">
+                            {auction.bids} bid{auction.bids !== 1 ? 's' : ''}
+                          </p>
+                          <p className={`font-medium ${
+                            auction.timeLeft === 'Ended' ? 'text-red-500' : 
+                            auction.timeLeft.includes('hour') ? 'text-orange-500' : 'text-green-500'
+                          }`}>
+                            {auction.timeLeft === 'Ended' ? 'Ended' : `${auction.timeLeft} left`}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                </Link>
+              ))}
+            </div>
+          )}
+
+          {/* Show More Button */}
+          {!isLoading && !isError && filteredProducts.length > 0 && (
+            <div className="mt-12 text-center">
+              <Link to="/dashboard" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md font-medium">
+                View All Auctions
               </Link>
-            ))}
-          </div>
-          <div className="mt-12 text-center">
-            <Link to="/dashboard" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md font-medium">
-              View All Auctions
-            </Link>
-          </div>
+            </div>
+          )}
         </div>
       </section>
       {/* Features Section */}
@@ -270,9 +332,14 @@ const Home = () => {
             through our dynamic auction platform.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/register" className="bg-white text-blue-700 hover:bg-gray-100 px-6 py-3 rounded-md font-medium">
-              Create an Account
-            </Link>
+            {
+              !isAuthenticated && (
+                <Link to="/register" className="bg-white text-blue-700 hover:bg-gray-100 px-6 py-3 rounded-md font-medium">
+                  Create an Account
+                </Link>
+              )
+            }
+           
             <Link to="/dashboard" className="bg-transparent hover:bg-blue-800 border border-white px-6 py-3 rounded-md font-medium">
               Browse Auctions
             </Link>

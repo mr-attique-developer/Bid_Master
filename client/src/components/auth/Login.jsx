@@ -12,31 +12,29 @@ const Login = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { user } = useSelector((state) => state.auth);
-  console.log(user)
   // RTK Query login mutation
-  const [loginUser, { isLoading }] = useLoginUserMutation();
-
+  const [loginUser, { isLoading , data}] = useLoginUserMutation();
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Simple validation
     if (!email || !password) {
       setError('Please enter both email and password');
       return;
     }
 
     try {
-      // Call the login mutation
       const userData = await loginUser({ email, password }).unwrap();
+      console.log(userData)
+      toast.success(
+        `Welcome back, ${userData.user.fullName}! You have successfully logged in.`
+      )
       
-      // Update Redux store with user data
       dispatch(setCredentials({ 
         user: userData.user, 
         token: userData.token 
       }));
       
-      // Redirect to dashboard
       navigate('/dashboard');
     } catch (err) {
       setError(err.data?.message || 'Login failed. Please try again.');

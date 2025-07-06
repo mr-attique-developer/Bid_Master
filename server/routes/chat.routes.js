@@ -5,7 +5,7 @@ import protect from "../middleware/user.middleware.js";
 
 const router = express.Router();
 
-router.route("/my-chats").get(protect, getUserChat)
+router.route("/my-chats/:userId").get(protect, getUserChat)
 router.route("/:chatId").get(protect, getChatById)
 router.route("/").post(protect,createChatRoom)
 

@@ -1,54 +1,122 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { ClockIcon, TagIcon, UserIcon, MessageSquareIcon, HeartIcon, ShareIcon, AlertCircleIcon } from 'lucide-react';
 import { useNotification } from '../components/ui/NotificationProvider';
+import { useGetSingleProductQuery } from '../services/productApi';
+import LoadingSpinner from '../components/LoadingSpinner';
 
-const AuctionDetail = ({ isAuthenticated }) => {
+const AuctionDetail = () => {
+  // All hooks called unconditionally at the top
   const { id } = useParams();
   const [bidAmount, setBidAmount] = useState('');
   const [showBidConfirm, setShowBidConfirm] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
   const { addNotification } = useNotification();
+  const { isAuthenticated, user } = useSelector((state) => state.auth);
+  const { data: response, isLoading, isError, error } = useGetSingleProductQuery(id);
 
-  // Mock auction data - in a real app, this would be fetched from an API
-  const auction = {
-    id: parseInt(id || '1'),
-    title: 'Vintage Camera Collection - Leica, Canon & Nikon',
-    description: 'A rare collection of vintage cameras in excellent condition. This collection includes a Leica M3 from 1954, Canon AE-1 from 1976, and Nikon F2 from 1971. All cameras have been tested and are in working condition. The collection comes with original cases and some accessories.',
-    images: [
-      'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
-      'https://images.unsplash.com/photo-1452780212940-6f5c0d14d848?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
-      'https://images.unsplash.com/photo-1520549233664-03f65c1d1327?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80'
-    ],
-    currentBid: 450,
-    minBidIncrement: 25,
-    startingPrice: 200,
-    timeLeft: '2 days 5 hours',
-    endTime: '2023-12-15T15:00:00Z',
-    seller: {
-      id: 101,
-      name: 'JohnDoe',
-      rating: 4.8,
-      auctions: 57
-    },
-    category: 'Electronics',
-    condition: 'Used - Excellent',
-    location: 'New York, NY',
-    shippingOptions: 'Pickup only',
-    bids: [
-      { id: 1, user: 'Alice', amount: 450, time: '1 hour ago' },
-      { id: 2, user: 'Bob', amount: 425, time: '3 hours ago' },
-      { id: 3, user: 'Charlie', amount: 400, time: '5 hours ago' },
-      { id: 4, user: 'David', amount: 350, time: '1 day ago' },
-      { id: 5, user: 'Eva', amount: 325, time: '1 day ago' },
-      { id: 6, user: 'Frank', amount: 300, time: '2 days ago' },
-      { id: 7, user: 'Grace', amount: 275, time: '2 days ago' },
-      { id: 8, user: 'Hank', amount: 250, time: '3 days ago' },
-      { id: 9, user: 'Ivy', amount: 225, time: '3 days ago' },
-      { id: 10, user: 'Jack', amount: 200, time: '4 days ago' }
-    ]
+  // Function to calculate time left
+  const calculateTimeLeft = (endsAt) => {
+    if (!endsAt) return 'No end date specified';
+    
+    const now = new Date();
+    const endDate = new Date(endsAt);
+    const timeDiff = endDate - now;
+    
+    if (timeDiff <= 0) return 'Auction ended';
+    
+    const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60))
+    
+    if (days > 0) {
+      return `${days} day${days > 1 ? 's' : ''} ${hours} hour${hours > 1 ? 's' : ''}`;
+    } else if (hours > 0) {
+      return `${hours} hour${hours > 1 ? 's' : ''} ${minutes} minute${minutes > 1 ? 's' : ''}`;
+    }
+    return `${minutes} minute${minutes > 1 ? 's' : ''}`;
   };
 
-  const [selectedImage, setSelectedImage] = useState(auction.images[0]);
+  // Transform product data to auction format
+  const transformProductToAuction = (product) => {
+    if (!product) return null;
+    
+    return {
+      id: product._id,
+      title: product.title,
+      description: product.description,
+      images: product.image?.map(img => img.url) || [],
+      currentBid: product.currentBid || product.startingPrice,
+      minBidIncrement: product.minBidIncrement,
+      startingPrice: product.startingPrice,
+      timeLeft: calculateTimeLeft(product.endsAt),
+      endTime: product.endsAt,
+      bidDuration: product.bidDuration,
+      seller: {
+        id: product.seller?._id,
+        name: product.seller?.fullName || 'Unknown Seller',
+        email: product.seller?.email,
+        rating: product.seller?.rating || 4.5,
+        auctions: product.seller?.totalAuctions || 0
+      },
+      category: product.category,
+      condition: product.condition,
+      location: product.location,
+      shippingOptions: product.shippingOption,
+      status: product.status,
+      adminFeePaid: product.adminFeePaid,
+      bids: product.bids || []
+    };
+  };
+
+  // Set the first image when product data loads
+  useEffect(() => {
+    if (response?.product?.image?.length > 0) {
+      setSelectedImage(response.product.image[0].url);
+    }
+  }, [response]);
+
+  // Handle loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  // Handle error state
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-red-600 mb-4">Error loading auction</h2>
+          <p className="text-gray-600 mb-4">
+            {error?.data?.message || 'Failed to load auction details'}
+          </p>
+          <Link to="/dashboard" className="text-blue-600 hover:underline">
+            &larr; Back to Auctions
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle missing product
+  const auction = transformProductToAuction(response?.product);
+  if (!auction) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-600 mb-4">Auction not found</h2>
+          <Link to="/dashboard" className="text-blue-600 hover:underline">
+            &larr; Back to Auctions
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const handleBidSubmit = (e) => {
     e.preventDefault();
@@ -58,7 +126,7 @@ const AuctionDetail = ({ isAuthenticated }) => {
       return;
     }
     if (bidValue < auction.currentBid + auction.minBidIncrement) {
-      addNotification(`Minimum bid increment is $${auction.minBidIncrement}`, 'error');
+      addNotification(`Minimum bid increment is ₨${auction.minBidIncrement}`, 'error');
       return;
     }
     setShowBidConfirm(true);
@@ -69,7 +137,7 @@ const AuctionDetail = ({ isAuthenticated }) => {
     setShowBidConfirm(false);
     auction.bids.unshift({
       id: auction.bids.length + 1,
-      user: 'You',
+      user: user?.fullName || user?.name || 'You',
       amount: parseFloat(bidAmount),
       time: 'Just now'
     });
@@ -89,6 +157,7 @@ const AuctionDetail = ({ isAuthenticated }) => {
     window.location.href = `/chat/${auction.seller.id}`;
   };
 
+  
   return (
     <div className="bg-gray-50 min-h-screen w-full pb-12">
       <div className="container mx-auto px-4 py-8 max-w-6xl">
@@ -101,20 +170,29 @@ const AuctionDetail = ({ isAuthenticated }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-6">
             {/* Image Gallery */}
             <div>
-              <div className="mb-4 h-80 overflow-hidden rounded-lg">
-                <img src={selectedImage} alt={auction.title} className="w-full h-full object-contain" />
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {auction.images.map((image, index) => (
-                  <div
-                    key={index}
-                    className={`h-20 overflow-hidden rounded-md cursor-pointer ${selectedImage === image ? 'ring-2 ring-blue-500' : ''}`}
-                    onClick={() => setSelectedImage(image)}
-                  >
-                    <img src={image} alt={`${auction.title} - Image ${index + 1}`} className="w-full h-full object-cover" />
+              <div className="mb-4 h-80 overflow-hidden rounded-lg bg-gray-200 flex items-center justify-center">
+                {selectedImage ? (
+                  <img src={selectedImage} alt={auction.title} className="w-full h-full object-contain" />
+                ) : (
+                  <div className="text-gray-500 text-center">
+                    <div className="text-4xl mb-2">📷</div>
+                    <p>No image available</p>
                   </div>
-                ))}
+                )}
               </div>
+              {auction.images && auction.images.length > 0 && (
+                <div className="grid grid-cols-3 gap-2">
+                  {auction.images.map((image, index) => (
+                    <div
+                      key={index}
+                      className={`h-20 overflow-hidden rounded-md cursor-pointer ${selectedImage === image ? 'ring-2 ring-blue-500' : ''}`}
+                      onClick={() => setSelectedImage(image)}
+                    >
+                      <img src={image} alt={`${auction.title} - Image ${index + 1}`} className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             {/* Auction Details */}
             <div>
@@ -138,58 +216,78 @@ const AuctionDetail = ({ isAuthenticated }) => {
                 <div className="flex justify-between items-center mb-2">
                   <p className="text-gray-500">Current Bid:</p>
                   <p className="text-2xl font-bold text-blue-600">
-                    ${auction.currentBid}
+                    ₨{auction.currentBid}
                   </p>
                 </div>
                 <div className="flex justify-between items-center mb-2">
                   <p className="text-gray-500">Starting Price:</p>
-                  <p className="text-gray-700">${auction.startingPrice}</p>
+                  <p className="text-gray-700">₨{auction.startingPrice}</p>
                 </div>
                 <div className="flex justify-between items-center mb-4">
                   <p className="text-gray-500">Min. Bid Increment:</p>
-                  <p className="text-gray-700">+${auction.minBidIncrement}</p>
+                  <p className="text-gray-700">+₨{auction.minBidIncrement}</p>
                 </div>
-                <div className="flex items-center text-red-500 mb-6">
+                <div className="flex justify-between items-center mb-4">
+                  <p className="text-gray-500">Status:</p>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    auction.status === 'sold' ? 'bg-red-100 text-red-800' :
+                    auction.status === 'active' ? 'bg-green-100 text-green-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {auction.status?.charAt(0).toUpperCase() + auction.status?.slice(1)}
+                  </span>
+                </div>
+                <div className={`flex items-center mb-6 ${
+                  auction.timeLeft === 'Auction ended' ? 'text-red-500' : 'text-red-500'
+                }`}>
                   <ClockIcon className="w-5 h-5 mr-2" />
-                  <span className="font-medium">{auction.timeLeft} left</span>
+                  <span className="font-medium">{auction.timeLeft}</span>
                 </div>
                 {/* Bid Form */}
-                <form onSubmit={handleBidSubmit}>
-                  <div className="flex items-center mb-4">
-                    <div className="relative flex-grow mr-2">
-                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
-                        $
-                      </span>
-                      <input
-                        type="number"
-                        value={bidAmount}
-                        onChange={e => setBidAmount(e.target.value)}
-                        className="pl-8 w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
-                        placeholder={`${auction.currentBid + auction.minBidIncrement} or more`}
-                        min={auction.currentBid + auction.minBidIncrement}
-                        step="1"
-                        required
+                {auction.status !== 'sold' && auction.timeLeft !== 'Auction ended' ? (
+                  <form onSubmit={handleBidSubmit}>
+                    <div className="flex items-center mb-4">
+                      <div className="relative flex-grow mr-2">
+                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
+                          ₨
+                        </span>
+                        <input
+                          type="number"
+                          value={bidAmount}
+                          onChange={e => setBidAmount(e.target.value)}
+                          className="pl-8 w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
+                          placeholder={`₨${auction.currentBid + auction.minBidIncrement} or more`}
+                          min={auction.currentBid + auction.minBidIncrement}
+                          step="1"
+                          required
+                          disabled={!isAuthenticated}
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md font-medium disabled:bg-gray-400"
                         disabled={!isAuthenticated}
-                      />
+                      >
+                        Place Bid
+                      </button>
                     </div>
-                    <button
-                      type="submit"
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md font-medium disabled:bg-gray-400"
-                      disabled={!isAuthenticated}
-                    >
-                      Place Bid
-                    </button>
-                  </div>
-                  {!isAuthenticated && (
-                    <p className="text-sm text-red-500 mb-4">
-                      Please{' '}
-                      <Link to="/login" className="underline">
-                        log in
-                      </Link>{' '}
-                      to place a bid
+                    {!isAuthenticated && (
+                      <p className="text-sm text-red-500 mb-4">
+                        Please{' '}
+                        <Link to="/login" className="underline">
+                          log in
+                        </Link>{' '}
+                        to place a bid
+                      </p>
+                    )}
+                  </form>
+                ) : (
+                  <div className="mb-4 p-4 bg-gray-100 rounded-md text-center">
+                    <p className="text-gray-600 font-medium">
+                      {auction.status === 'sold' ? 'This auction has been sold' : 'This auction has ended'}
                     </p>
-                  )}
-                </form>
+                  </div>
+                )}
                 <div className="flex space-x-2 mb-6">
                   <button
                     onClick={handleContactSeller}
@@ -208,8 +306,7 @@ const AuctionDetail = ({ isAuthenticated }) => {
                 <div className="flex items-center p-3 bg-yellow-50 border border-yellow-200 rounded-md">
                   <AlertCircleIcon className="w-5 h-5 text-yellow-500 mr-2 flex-shrink-0" />
                   <p className="text-sm text-yellow-700">
-                    This auction requires in-person payment and pickup.
-                    Coordinate with the seller after winning.
+                    Shipping: {auction.shippingOptions}. Please coordinate with the seller for payment and delivery details.
                   </p>
                 </div>
               </div>
@@ -247,10 +344,12 @@ const AuctionDetail = ({ isAuthenticated }) => {
                     </div>
                     <div>
                       <p className="font-medium">{auction.seller.name}</p>
+                      {auction.seller.email && (
+                        <p className="text-sm text-gray-500 mb-1">{auction.seller.email}</p>
+                      )}
                       <div className="flex items-center text-sm text-gray-500">
-                        <span className="text-yellow-500">★</span>
                         <span className="ml-1">
-                          {auction.seller.rating} ({auction.seller.auctions}{' '}
+                          ({auction.seller.auctions}{' '}
                           auctions)
                         </span>
                       </div>
@@ -283,22 +382,30 @@ const AuctionDetail = ({ isAuthenticated }) => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {auction.bids.slice(0, 5).map(bid => (
-                        <tr key={bid.id}>
-                          <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-700">
-                            {bid.user}
-                          </td>
-                          <td className="px-4 py-2 whitespace-nowrap text-sm text-right text-gray-700">
-                            ${bid.amount}
-                          </td>
-                          <td className="px-4 py-2 whitespace-nowrap text-sm text-right text-gray-500">
-                            {bid.time}
+                      {auction.bids && auction.bids.length > 0 ? (
+                        auction.bids.slice(0, 5).map((bid, index) => (
+                          <tr key={bid.id || bid._id || index}>
+                            <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-700">
+                              {bid.user || bid.bidder?.name || bid.bidder?.username || 'Anonymous'}
+                            </td>
+                            <td className="px-4 py-2 whitespace-nowrap text-sm text-right text-gray-700">
+                              ₨{bid.amount || bid.bidAmount}
+                            </td>
+                            <td className="px-4 py-2 whitespace-nowrap text-sm text-right text-gray-500">
+                              {bid.time || bid.createdAt || 'Unknown time'}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="3" className="px-4 py-8 text-center text-gray-500">
+                            No bids yet. Be the first to bid!
                           </td>
                         </tr>
-                      ))}
+                      )}
                     </tbody>
                   </table>
-                  {auction.bids.length > 5 && (
+                  {auction.bids && auction.bids.length > 5 && (
                     <div className="px-4 py-2 bg-gray-50 text-center text-sm text-gray-700">
                       + {auction.bids.length - 5} more bids
                     </div>
@@ -316,7 +423,7 @@ const AuctionDetail = ({ isAuthenticated }) => {
             <h3 className="text-xl font-bold mb-4">Confirm Your Bid</h3>
             <p className="mb-6">
               You are about to place a bid of{' '}
-              <span className="font-bold text-blue-600">${bidAmount}</span> on "
+              <span className="font-bold text-blue-600">₨{bidAmount}</span> on "
               {auction.title}".
             </p>
             <p className="mb-6 text-sm text-gray-600">
