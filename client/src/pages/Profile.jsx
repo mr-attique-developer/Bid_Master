@@ -14,6 +14,7 @@ import {
   useLogoutUserMutation,
   useUpdateUserProfileMutation,
 } from "../services/authApi";
+import { useGetUserBidsQuery } from "../services/productApi";
 import MemberDate from "../utility/MemberDate";
 import { toast } from "react-toastify";
 import Settings from "./Settings";
@@ -46,6 +47,12 @@ const Profile = () => {
       error: updateError,
     },
   ] = useUpdateUserProfileMutation();
+  
+  const { 
+    data: userBidsData, 
+    isLoading: bidsLoading,
+    isError: bidsError 
+  } = useGetUserBidsQuery();
 
   useEffect(() => {
     if (data?.user) {
@@ -276,7 +283,7 @@ const Profile = () => {
             )}
 
             {/* Purchases Tab */}
-            {/* {activeTab === 'purchases' && (
+            {activeTab === 'purchases' && (
               <div>
                 <div className="bg-white rounded-lg shadow-md p-6 mb-6">
                   <h2 className="text-xl font-semibold mb-4">
@@ -284,161 +291,125 @@ const Profile = () => {
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <div className="bg-blue-50 p-4 rounded-md">
-                      <p className="text-sm text-gray-600">Active Bids</p>
-                      <p className="text-2xl font-bold text-blue-600">5</p>
+                      <p className="text-sm text-gray-600">Total Bids</p>
+                      <p className="text-2xl font-bold text-blue-600">
+                        {userBidsData?.totalBids || 0}
+                      </p>
                     </div>
                     <div className="bg-green-50 p-4 rounded-md">
-                      <p className="text-sm text-gray-600">Won Auctions</p>
+                      <p className="text-sm text-gray-600">Active Bids</p>
                       <p className="text-2xl font-bold text-green-600">
-                        {user.stats.won}
+                        {userBidsData?.bids?.filter(bid => bid.product?.status === 'listed').length || 0}
                       </p>
                     </div>
                     <div className="bg-purple-50 p-4 rounded-md">
-                      <p className="text-sm text-gray-600">Total Spent</p>
+                      <p className="text-sm text-gray-600">Won Auctions</p>
                       <p className="text-2xl font-bold text-purple-600">
-                        ₨2,400
+                        {userBidsData?.bids?.filter(bid => bid.product?.status === 'sold').length || 0}
                       </p>
                     </div>
                   </div>
-                  <h3 className="font-medium text-lg mb-3">Current Bids</h3>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Item
-                          </th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Your Bid
-                          </th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Current Bid
-                          </th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            End Time
-                          </th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        <tr>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="h-10 w-10 flex-shrink-0 mr-3">
-                                <img className="h-10 w-10 rounded-md object-cover" src="https://images.unsplash.com/photo-1516035069371-29a1b244cc32?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=100&q=80" alt="" />
-                              </div>
-                              <div>
-                                <div className="text-sm font-medium text-gray-900">
-                                  Vintage Camera Collection
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  #12345
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
-                            ₨450
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
-                            ₨450
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-500">
-                            2 days left
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-right">
-                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                              Winning
-                            </span>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="h-10 w-10 flex-shrink-0 mr-3">
-                                <img className="h-10 w-10 rounded-md object-cover" src="https://images.unsplash.com/photo-1523170335258-f5ed11844a49?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=100&q=80" alt="" />
-                              </div>
-                              <div>
-                                <div className="text-sm font-medium text-gray-900">
-                                  Luxury Wristwatch
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  #12348
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
-                            ₨1,150
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
-                            ₨1,200
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-500">
-                            1 day left
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-right">
-                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                              Outbid
-                            </span>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="font-medium text-lg mb-3">Purchase History</h3>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Item
-                          </th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Price
-                          </th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Date
-                          </th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {transactions.filter(t => t.type === 'purchase').map(transaction => (
-                          <tr key={transaction.id}>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <div className="text-sm font-medium text-gray-900">
-                                {transaction.item}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                #{transaction.id + 12345}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
-                              ₨{transaction.amount}
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-500">
-                              {transaction.date}
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-right">
-                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${transaction.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                {transaction.status === 'completed' ? 'Completed' : 'Pending'}
-                              </span>
-                            </td>
+                  <h3 className="font-medium text-lg mb-3">My Bids History</h3>
+                  {bidsLoading ? (
+                    <div className="flex items-center justify-center p-8">
+                      <Loader className="animate-spin mr-2" />
+                      <span>Loading bids...</span>
+                    </div>
+                  ) : bidsError ? (
+                    <div className="text-center p-8 text-red-600">
+                      Failed to load bids
+                    </div>
+                  ) : userBidsData?.bids && userBidsData.bids.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Item
+                            </th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Your Bid
+                            </th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Current Bid
+                            </th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Date
+                            </th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Status
+                            </th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {userBidsData.bids.map((bid, index) => (
+                            <tr key={bid._id || index}>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <div className="h-10 w-10 flex-shrink-0 mr-3">
+                                    <img 
+                                      className="h-10 w-10 rounded-md object-cover" 
+                                      src={bid.product?.image?.[0]?.url || '/placeholder-image.jpg'}
+                                      alt={bid.product?.title || 'Product'} 
+                                    />
+                                  </div>
+                                  <div>
+                                    <div className="text-sm font-medium text-gray-900">
+                                      <Link 
+                                        to={`/auction/${bid.product?._id}`}
+                                        className="hover:text-blue-600"
+                                      >
+                                        {bid.product?.title || 'Unknown Product'}
+                                      </Link>
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      #{bid.product?._id?.slice(-6) || 'N/A'}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
+                                ₨{bid.amount}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
+                                ₨{bid.product?.currentBid || bid.product?.startingPrice}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-500">
+                                {new Date(bid.createdAt).toLocaleDateString()}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-right">
+                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                  bid.product?.status === 'sold' 
+                                    ? 'bg-green-100 text-green-800'
+                                    : bid.product?.status === 'listed'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {bid.product?.status === 'sold' ? 'Completed' :
+                                   bid.product?.status === 'listed' ? 'Active' : 
+                                   bid.product?.status?.charAt(0).toUpperCase() + bid.product?.status?.slice(1)}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center p-8 text-gray-500">
+                      <ClipboardListIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                      <p>You haven't placed any bids yet.</p>
+                      <Link 
+                        to="/dashboard" 
+                        className="text-blue-600 hover:text-blue-500 mt-2 inline-block"
+                      >
+                        Browse Auctions
+                      </Link>
+                    </div>
+                  )}
                 </div>
               </div>
-            )} */}
+            )}
             {/* Sales Tab */}
             {/* {activeTab === 'sales' && (
               <div>

@@ -8,7 +8,7 @@ import {
   SearchIcon,
   XIcon,
 } from "lucide-react";
-import { useGetAllProductsQuery } from "../services/productApi";
+import { useGetAllProductsQuery, useGetUserBidsQuery } from "../services/productApi";
 import { useSelector } from "react-redux";
 import LoadingSpinner from "../components/LoadingSpinner";
 
@@ -22,6 +22,7 @@ const Dashboard = () => {
   const { user } = useSelector((state) => state.auth);
 
   const { data, isLoading, isError } = useGetAllProductsQuery();
+  const { data: userBidsData, isLoading: bidsLoading } = useGetUserBidsQuery();
   console.log(data);
   const products = data?.products || [];
   const categories = useMemo(() => {
@@ -35,9 +36,13 @@ const Dashboard = () => {
     let filtered = products;
 
     if (activeTab === "mybids") {
-      filtered = filtered.filter((auction) =>
-        auction.bids?.some((bid) => bid.bidder === user?.id)
-      );
+      // Use the user bids data to get products where user has placed bids
+      if (userBidsData?.bids) {
+        const bidProductIds = userBidsData.bids.map(bid => bid.product?._id).filter(Boolean);
+        filtered = products.filter(product => bidProductIds.includes(product._id));
+      } else {
+        filtered = [];
+      }
     } else if (activeTab === "myauctions") {
       filtered = filtered.filter((auction) => {
         const sellerId = auction.seller?._id?.toString();
@@ -75,7 +80,17 @@ const Dashboard = () => {
     categoryFilter,
     statusFilter,
     user?._id,
+    userBidsData?.bids,
   ]);
+
+  // Helper function to get user's bid for a specific product
+  const getUserBidForProduct = (productId) => {
+    if (!userBidsData?.bids) return null;
+    const userBids = userBidsData.bids.filter(bid => bid.product?._id === productId);
+    if (userBids.length === 0) return null;
+    // Return the highest bid by the user for this product
+    return Math.max(...userBids.map(bid => bid.amount));
+  };
 
   // Clear all filters
   const clearFilters = () => {
@@ -106,7 +121,7 @@ const Dashboard = () => {
   }
 
   // Loading state
-  if (isLoading) {
+  if (isLoading || (activeTab === "mybids" && bidsLoading)) {
     return (
       <div className="bg-gray-50 min-h-screen w-full pb-12">
         <div className="container mx-auto px-4 py-8 max-w-6xl">
@@ -406,27 +421,43 @@ const Dashboard = () => {
                     </h3>
                     <div className="flex justify-between items-center">
                       <div>
-                        <p className="text-sm text-gray-500">Current Bid</p>
+                        <p className="text-sm text-gray-500">
+                          {activeTab === "mybids" ? "Your Bid" : "Current Bid"}
+                        </p>
                         <p className="text-blue-600 font-bold">
-                          ₨{auction.currentBid || auction.startingPrice}
+                          {activeTab === "mybids" 
+                            ? `₨${getUserBidForProduct(auction._id) || auction.currentBid || auction.startingPrice}`
+                            : `₨${auction.currentBid || auction.startingPrice}`}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm text-gray-500">
-                          {auction.bids?.length || 0} bid
-                          {(auction.bids?.length || 0) !== 1 ? "s" : ""}
-                        </p>
-                        <p
-                          className={`font-medium ${
-                            getTimeLeft(auction.endsAt) === "Ended"
-                              ? "text-red-500"
-                              : getTimeLeft(auction.endsAt).includes("hour")
-                              ? "text-orange-500"
-                              : "text-green-500"
-                          }`}
-                        >
-                          {getTimeLeft(auction.endsAt)}
-                        </p>
+                        {activeTab === "mybids" && (
+                          <>
+                            <p className="text-sm text-gray-500">Current Bid</p>
+                            <p className="text-green-600 font-medium">
+                              ₨{auction.currentBid || auction.startingPrice}
+                            </p>
+                          </>
+                        )}
+                        {activeTab !== "mybids" && (
+                          <>
+                            <p className="text-sm text-gray-500">
+                              {auction.bids?.length || 0} bid
+                              {(auction.bids?.length || 0) !== 1 ? "s" : ""}
+                            </p>
+                            <p
+                              className={`font-medium ${
+                                getTimeLeft(auction.endsAt) === "Ended"
+                                  ? "text-red-500"
+                                  : getTimeLeft(auction.endsAt).includes("hour")
+                                  ? "text-orange-500"
+                                  : "text-green-500"
+                              }`}
+                            >
+                              {getTimeLeft(auction.endsAt)}
+                            </p>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>

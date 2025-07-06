@@ -37,9 +37,31 @@ export const productApi = createApi({
         method: "GET",
       }),
       providesTags:["Product"]
+    }),
+    placeBid: builder.mutation({
+      query: ({ productId, ...bidData }) => ({
+        url: `/bids/place/${productId}`,
+        method: "POST",
+        body: bidData,
+      }),
+      invalidatesTags: ["Product"]
+    }),
+    getAllBids: builder.query({
+      query: (productId) => ({
+        url: `/bids/product/${productId}`,
+        method: "GET",
+      }),
+      providesTags: ["Product"]
+    }),
+    getUserBids: builder.query({
+      query: () => ({
+        url: `/bids/user`,
+        method: "GET",
+      }),
+      providesTags: ["Product"]
     })
   }),
   
 });
 
-export const { useCreateProductMutation, useGetAllProductsQuery, useGetSingleProductQuery } = productApi;
+export const { useCreateProductMutation, useGetAllProductsQuery, useGetSingleProductQuery, usePlaceBidMutation, useGetAllBidsQuery, useGetUserBidsQuery } = productApi;
