@@ -5,6 +5,12 @@ import User from "../models/user.model.js"
 import sendEmail from "../utils/email.js"
 import Chat from "../models/chat.model.js";
 
+// Import io - we'll set this up
+let io;
+export const setSocketIOForCron = (socketInstance) => {
+  io = socketInstance;
+};
+
 cron.schedule("* * * * *", async () => {
   try {
     const now = new Date();
@@ -19,6 +25,24 @@ cron.schedule("* * * * *", async () => {
       if (bids.length === 0) {
         product.status = "sold";
         await product.save();
+        
+        // Notify that auction ended with no bids
+        if (io) {
+          io.emit("auctionExpired", {
+            userId: product.seller._id,
+            productTitle: product.title,
+            productId: product._id
+          });
+
+          io.to(`auction-${product._id}`).emit("auctionEnded", {
+            productId: product._id,
+            productTitle: product.title,
+            winnerName: null,
+            winningBid: 0,
+            status: "expired"
+          });
+        }
+        
         continue;
       }
 
@@ -33,6 +57,49 @@ cron.schedule("* * * * *", async () => {
 
       product.status = "sold";
       await product.save();
+
+      // Send Socket.IO notifications for auction end
+      if (io) {
+        // Notify winner
+        io.emit("auctionWon", {
+          userId: winner._id,
+          productTitle: product.title,
+          productId: product._id,
+          winningBid: highestBid.amount,
+          sellerName: seller.fullName
+        });
+
+        // Notify seller
+        io.emit("auctionSold", {
+          userId: seller._id,
+          productTitle: product.title,
+          productId: product._id,
+          winningBid: highestBid.amount,
+          winnerName: winner.fullName
+        });
+
+        // Notify all other bidders that they lost
+        for (const bid of bids) {
+          if (bid.bidder._id.toString() !== winner._id.toString()) {
+            io.emit("auctionLost", {
+              userId: bid.bidder._id,
+              productTitle: product.title,
+              productId: product._id,
+              winningBid: highestBid.amount,
+              winnerName: winner.fullName
+            });
+          }
+        }
+
+        // Notify all users in auction room that auction ended
+        io.to(`auction-${product._id}`).emit("auctionEnded", {
+          productId: product._id,
+          productTitle: product.title,
+          winnerName: winner.fullName,
+          winningBid: highestBid.amount,
+          status: "sold"
+        });
+      }
 
       await sendEmail(
         winner.email,

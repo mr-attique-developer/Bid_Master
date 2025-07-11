@@ -6,6 +6,9 @@ import connectDB from "./config/db.js";
 import userRoutes from "./routes/user.routes.js";
 import productRoutes from "./routes/product.routes.js";
 import bidRoutes from "./routes/bid.routes.js";
+import { setSocketIO } from "./controllers/bid.controller.js";
+import { setSocketIO as setProductSocketIO } from "./controllers/product.controller.js";
+import { setSocketIOForCron } from "./crons/auctionChecker.js";
 import bodyParser from "body-parser";
 import "./crons/auctionChecker.js";
 import http from "http";
@@ -22,6 +25,14 @@ const io = new Server(server, {
     credentials: true,
   },
 });
+
+// Export io for use in controllers
+export { io };
+
+// Set socket instance in controllers
+setSocketIO(io);
+setProductSocketIO(io);
+setSocketIOForCron(io);
 
 app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
 app.use(bodyParser.json());
@@ -43,6 +54,22 @@ app.get("/", (req, res) => {
 // ✅ SOCKET.IO CONNECTION
 io.on("connection", (socket) => {
   console.log(`🟢 Socket connected: ${socket.id}`);
+
+  // ✅ Join auction room for bid notifications
+  socket.on("joinAuction", ({ productId, userId }) => {
+    const roomName = `auction-${productId}`;
+    socket.join(roomName);
+    console.log(`✅ User ${userId} joined auction room: ${roomName}`);
+    console.log(`📊 Room ${roomName} now has ${io.sockets.adapter.rooms.get(roomName)?.size || 0} users`);
+  });
+
+  // ✅ Leave auction room
+  socket.on("leaveAuction", ({ productId, userId }) => {
+    const roomName = `auction-${productId}`;
+    socket.leave(roomName);
+    console.log(`❌ User ${userId} left auction room: ${roomName}`);
+    console.log(`📊 Room ${roomName} now has ${io.sockets.adapter.rooms.get(roomName)?.size || 0} users`);
+  });
 
   // ✅ Securely join chat room
   socket.on("joinRoom", async ({ roomId, userId }) => {

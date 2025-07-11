@@ -3,6 +3,12 @@ import Product from "../models/product.model.js";
 import User from "../models/user.model.js";
 import sendEmail from "../utils/email.js";
 
+// Socket.IO instance
+let io;
+export const setSocketIO = (socketInstance) => {
+  io = socketInstance;
+};
+
 export const createProduct = async (req, res) => {
   try {
     const {
@@ -69,7 +75,7 @@ export const createProduct = async (req, res) => {
       `Hi ${req.user.fullName},\n\nYour product has been saved as 'Pending'.\nTo list it for bidding, please pay the 5% admin fee via JazzCash or EasyPaisa, then send the receipt to the admin on WhatsApp.\n\nPlease send the receipt here: https://wa.me/923164963275\n\nThank you!`
     );
 
-    // Notify all other users
+    // Notify all other users via email
     const users = await User.find({ _id: { $ne: sellerId } }).select("email");
     for (const user of users) {
       await sendEmail(
@@ -77,6 +83,24 @@ export const createProduct = async (req, res) => {
         "New Product Added",
         `A new product has been added by ${req.user.fullName}, auction titled "${title}". Check it out!`
       );
+    }
+
+    // Emit real-time notification for new product listing
+    if (io) {
+      console.log(`📢 Emitting productListed event for product: ${product._id}`);
+      
+      // Notify all connected users about new product listing
+      io.emit("productListed", {
+        productId: product._id,
+        productTitle: title,
+        sellerName: req.user.fullName,
+        sellerId: sellerId.toString(),
+        category: category,
+        startingPrice: startingPrice,
+        image: image[0]?.url // First image for notification
+      });
+
+      console.log(`📢 Emitted productListed globally for: ${title}`);
     }
 
     res.status(201).json({
