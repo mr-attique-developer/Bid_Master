@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   FilterIcon,
@@ -14,12 +14,15 @@ import LoadingSpinner from "../components/LoadingSpinner";
 
 const Dashboard = () => {
   const [viewMode, setViewMode] = useState("grid");
-  const [activeTab, setActiveTab] = useState("all");
+  const { user } = useSelector((state) => state.auth);
+  // Set default tab based on user role - buyers can't access "myauctions"
+  const [activeTab, setActiveTab] = useState(
+    user?.role === "buyer" ? "all" : "all"
+  );
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
-  const { user } = useSelector((state) => state.auth);
 
   const { data, isLoading, isError } = useGetAllProductsQuery();
   const { data: userBidsData, isLoading: bidsLoading } = useGetUserBidsQuery();
@@ -82,6 +85,13 @@ const Dashboard = () => {
     user?._id,
     userBidsData?.bids,
   ]);
+
+  // Effect to handle invalid tab access for buyers
+  useEffect(() => {
+    if (user?.role === "buyer" && activeTab === "myauctions") {
+      setActiveTab("all");
+    }
+  }, [user?.role, activeTab]);
 
   // Helper function to get user's bid for a specific product
   const getUserBidForProduct = (productId) => {
@@ -152,15 +162,18 @@ const Dashboard = () => {
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-4 md:mb-0">
-            Auction Dashboard
+            {user?.role === "buyer" ? "Browse Auctions" : "Auction Dashboard"}
           </h1>
-          <Link
-            to="/create-auction"
-            className="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
-          >
-            <PlusIcon className="w-5 h-5 mr-2" />
-            Create Auction
-          </Link>
+          {/* Only show Create Auction button for sellers and both roles */}
+          {(user?.role === "seller" || user?.role === "both") && (
+            <Link
+              to="/create-auction"
+              className="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+            >
+              <PlusIcon className="w-5 h-5 mr-2" />
+              Create Auction
+            </Link>
+          )}
         </div>
         {/* Tabs */}
         <div className="bg-white rounded-lg shadow-md mb-6 overflow-hidden">
@@ -185,16 +198,19 @@ const Dashboard = () => {
             >
               My Bids
             </button>
-            <button
-              onClick={() => setActiveTab("myauctions")}
-              className={`px-6 py-3 font-medium text-sm ${
-                activeTab === "myauctions"
-                  ? "text-blue-600 border-b-2 border-blue-600"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              My Auctions
-            </button>
+            {/* Only show My Auctions tab for sellers and both roles */}
+            {(user?.role === "seller" || user?.role === "both") && (
+              <button
+                onClick={() => setActiveTab("myauctions")}
+                className={`px-6 py-3 font-medium text-sm ${
+                  activeTab === "myauctions"
+                    ? "text-blue-600 border-b-2 border-blue-600"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                My Auctions
+              </button>
+            )}
           </div>
         </div>
         {/* Search and Filters */}

@@ -58,25 +58,13 @@ const Navbar = () => {
           <Link to="/" className="text-2xl font-bold text-blue-600">
             BidMaster
           </Link>
-          
-          <div className="hidden md:flex items-center space-x-6">
-            {user?.role === "seller" || user?.role === "both" && (
-              <>
-                <Link to="/dashboard" className="text-gray-700 hover:text-blue-600">
-                  Dashboard
-                </Link>
-                <Link to="/create-auction" className="text-gray-700 hover:text-blue-600">
-                  Create Auction
-                </Link>
-              </>
-            )}
-          </div>
+       
 
           <div className="hidden md:flex items-center space-x-4">
             {token ? (
               <>
                 <div className="relative">
-                  <button onClick={toggleNotifications} className="p-2 rounded-full hover:bg-gray-100">
+                  {/* <button onClick={toggleNotifications} className="p-2 rounded-full hover:bg-gray-100">
                     <BellIcon className="w-6 h-6 text-gray-600" />
                     {notifications.length > 0 && (
                       <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500"></span>
@@ -103,7 +91,7 @@ const Navbar = () => {
                         </Link>
                       </div>
                     </div>
-                  )}
+                  )} */}
                 </div>
 
                 <Link to="/chat" className="p-2 rounded-full hover:bg-gray-100">
@@ -169,27 +157,52 @@ const Navbar = () => {
               Home
             </Link>
             
-            {user?.role  === "seller" || user?.role === "both" ? (
+            {token ? (
               <>
+                {/* Show Dashboard and Create Auction only for sellers */}
+                {(user?.role === "seller" || user?.role === "both") && (
+                  <>
+                    <Link 
+                      to="/dashboard" 
+                      className="block py-2 px-4 text-gray-700 hover:bg-gray-100 rounded-md"
+                      onClick={toggleMobileMenu}
+                    >
+                      Dashboard
+                    </Link>
+                    <Link 
+                      to="/create-auction" 
+                      className="block py-2 px-4 text-gray-700 hover:bg-gray-100 rounded-md"
+                      onClick={toggleMobileMenu}
+                    >
+                      Create Auction
+                    </Link>
+                  </>
+                )}
+                
+                {/* Always show these for authenticated users */}
                 <Link 
-                  to="/dashboard" 
+                  to="/profile" 
                   className="block py-2 px-4 text-gray-700 hover:bg-gray-100 rounded-md"
                   onClick={toggleMobileMenu}
                 >
-                  Dashboard
+                  Profile
                 </Link>
-              
-           
-              
-              
-              <Link 
-                  to="/create-auction" 
+                <Link 
+                  to="/chat" 
                   className="block py-2 px-4 text-gray-700 hover:bg-gray-100 rounded-md"
                   onClick={toggleMobileMenu}
                 >
-                  Create Auction
+                  Messages
                 </Link>
-               
+                <button 
+                  onClick={() => {
+                    handleLogout();
+                    toggleMobileMenu();
+                  }}
+                  className="block w-full text-left py-2 px-4 text-red-600 hover:bg-red-50 rounded-md"
+                >
+                  Logout
+                </button>
               </>
             ) : (
               <>

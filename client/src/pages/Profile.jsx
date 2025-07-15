@@ -120,7 +120,7 @@ const Profile = () => {
   return (
     <div className="bg-gray-50 min-h-screen w-full pb-12">
       <div className="container mx-auto m-4 py-8 max-w-6xl">
-        <h1 className="text-3xl font-bold text-gray-800 mb-8">My Account</h1>
+        <h1 className="text-3xl font-bold text-gray-800 mb-8 mx-8">My Account</h1>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Sidebar */}
           <div className="md:col-span-1">
@@ -157,17 +157,7 @@ const Profile = () => {
                   <ShoppingBagIcon className="h-5 w-5 mr-3" />
                   Purchases & Bids
                 </button>
-                <button
-                  onClick={() => setActiveTab("sales")}
-                  className={`flex items-center w-full px-4 py-2 rounded-md text-left ${
-                    activeTab === "sales"
-                      ? "bg-blue-50 text-blue-600"
-                      : "text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  <ClipboardListIcon className="h-5 w-5 mr-3" />
-                  Sales & Auctions
-                </button>
+               
                 <button
                   onClick={() => setActiveTab("settings")}
                   className={`flex items-center w-full px-4 py-2 rounded-md text-left ${
@@ -410,180 +400,7 @@ const Profile = () => {
                 </div>
               </div>
             )}
-            {/* Sales Tab */}
-            {/* {activeTab === 'sales' && (
-              <div>
-                <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-                  <h2 className="text-xl font-semibold mb-4">
-                    My Auctions & Sales
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div className="bg-blue-50 p-4 rounded-md">
-                      <p className="text-sm text-gray-600">Active Auctions</p>
-                      <p className="text-2xl font-bold text-blue-600">2</p>
-                    </div>
-                    <div className="bg-green-50 p-4 rounded-md">
-                      <p className="text-sm text-gray-600">Completed Sales</p>
-                      <p className="text-2xl font-bold text-green-600">10</p>
-                    </div>
-                    <div className="bg-purple-50 p-4 rounded-md">
-                      <p className="text-sm text-gray-600">Total Earned</p>
-                      <p className="text-2xl font-bold text-purple-600">
-                        ₨1,600
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="font-medium text-lg">Active Auctions</h3>
-                    <Link to="/create-auction" className="text-sm text-blue-600 hover:underline">
-                      + Create New Auction
-                    </Link>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Item
-                          </th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Current Bid
-                          </th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Bids
-                          </th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            End Time
-                          </th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        <tr>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="h-10 w-10 flex-shrink-0 mr-3">
-                                <img className="h-10 w-10 rounded-md object-cover" src="https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=100&q=80" alt="" />
-                              </div>
-                              <div>
-                                <div className="text-sm font-medium text-gray-900">
-                                  Modern Art Painting
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  #12347
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
-                            ₨750
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
-                            9
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-500">
-                            3 days left
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-right">
-                            <button className="text-blue-600 hover:text-blue-800 text-sm">
-                              View
-                            </button>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="h-10 w-10 flex-shrink-0 mr-3">
-                                <img className="h-10 w-10 rounded-md object-cover" src="https://images.unsplash.com/photo-1605901309584-818e25960a8f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=100&q=80" alt="" />
-                              </div>
-                              <div>
-                                <div className="text-sm font-medium text-gray-900">
-                                  Gaming Console Bundle
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  #12351
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
-                            ₨550
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
-                            15
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-500">
-                            2 days left
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-right">
-                            <button className="text-blue-600 hover:text-blue-800 text-sm">
-                              View
-                            </button>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="font-medium text-lg mb-3">Sales History</h3>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Item
-                          </th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Price
-                          </th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Buyer
-                          </th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Date
-                          </th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {transactions.filter(t => t.type === 'sale').map(transaction => (
-                          <tr key={transaction.id}>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <div className="text-sm font-medium text-gray-900">
-                                {transaction.item}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                #{transaction.id + 12345}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
-                              ₨{transaction.amount}
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
-                              User#{transaction.id + 100}
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-500">
-                              {transaction.date}
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-right">
-                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${transaction.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                {transaction.status === 'completed' ? 'Completed' : 'Pending'}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            )} */}
-            {/* Settings Tab */}
+           
             {activeTab === "settings" && <Settings />}
           </div>
         </div>

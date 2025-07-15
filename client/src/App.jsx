@@ -17,6 +17,7 @@ import LoadingSpinner from "./components/LoadingSpinner";
 import { setCredentials } from "./features/auth/authSlice";
 import GuestRoute from "./components/GuestRoutes";
 import ProtectedRoute from "./components/ProtectedRoutes";
+import SellerRoute from "./components/SellerRoute";
 
 export function App() {
   const dispatch = useDispatch();
@@ -56,7 +57,14 @@ export function App() {
               {/* Protected routes */}
               <Route element={<ProtectedRoute />}>
                 <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/create-auction" element={<CreateAuction />} />
+                <Route 
+                  path="/create-auction" 
+                  element={
+                    <SellerRoute>
+                      <CreateAuction />
+                    </SellerRoute>
+                  } 
+                />
                 <Route path="/auction/:id" element={<AuctionDetail />} />
 
                 <Route

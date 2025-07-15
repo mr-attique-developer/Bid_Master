@@ -83,9 +83,9 @@ const Login = () => {
               <label htmlFor="password" className="text-sm font-medium text-gray-700">
                 Password
               </label>
-              <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">
+              {/* <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">
                 Forgot password?
-              </Link>
+              </Link> */}
             </div>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
