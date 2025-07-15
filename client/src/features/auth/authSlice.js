@@ -1,15 +1,15 @@
-import { createSlice } from '@reduxjs/toolkit';
-import { authApi } from '../../services/authApi';
+import { createSlice } from "@reduxjs/toolkit";
+import { authApi } from "../../services/authApi";
 
 const initialState = {
-    name:"auth",
+  name: "auth",
   user: null,
   token: null,
-  isAuthenticated: false
+  isAuthenticated: false,
 };
 
 const authSlice = createSlice({
-  name: 'auth',
+  name: "auth",
   initialState,
   reducers: {
     setCredentials: (state, action) => {
@@ -21,9 +21,9 @@ const authSlice = createSlice({
       state.user = null;
       state.token = null;
       state.isAuthenticated = false;
-      localStorage.removeItem('token')
-      localStorage.removeItem('user');
-    }
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+    },
   },
   extraReducers: (builder) => {
     // Automatically update state on successful login
@@ -33,11 +33,11 @@ const authSlice = createSlice({
         state.user = payload.user;
         state.token = payload.token;
         state.isAuthenticated = true;
-        localStorage.setItem('token', payload.token);
-        localStorage.setItem('user', JSON.stringify(payload.user));
+        localStorage.setItem("token", payload.token);
+        localStorage.setItem("user", JSON.stringify(payload.user));
       }
     );
-  }
+  },
 });
 
 export const { setCredentials, logout } = authSlice.actions;

@@ -4,6 +4,7 @@ import { PlusIcon, XIcon, ImageIcon } from "lucide-react";
 import { useNotification } from "../components/ui/NotificationProvider";
 import { useCreateProductMutation } from "../services/productApi";
 import { toast } from "react-toastify";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 const CreateAuction = () => {
   const navigate = useNavigate();
@@ -59,19 +60,24 @@ const CreateAuction = () => {
     setImages((prev) => prev.filter((_, i) => i !== index));
     setImagePreviews((prev) => prev.filter((_, i) => i !== index));
   };
-  const [createProduct, { isLoading, isSuccess, isError }] =
+  const [createProduct, { isLoading, isSuccess, isError, data }] =
     useCreateProductMutation();
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log(formData, images);
+    console.log("🚀 Starting product creation...");
+    
     if (images.length === 0) {
       toast.error("Please upload at least one image.");
       return;
     }
+    
     const form = new FormData();
     Object.entries(formData).forEach(([key, value]) => {
       if (key === "category" || key === "condition") {
         form.append(key, value.toLowerCase());
+      } else if (key === "bidDuration" || key === "startingPrice" || key === "minBidIncrement") {
+        // Ensure numeric fields are properly converted
+        form.append(key, Number(value).toString());
       } else {
         form.append(key, value);
       }
@@ -80,8 +86,12 @@ const CreateAuction = () => {
     images.forEach((image) => {
       form.append("images", image);
     });
+    
     try {
-      await createProduct(form).unwrap();
+      console.log("📤 Sending product data to server...");
+      const result = await createProduct(form).unwrap();
+      console.log("✅ Product creation result:", result);
+      
       // Reset form after successful submission
       setFormData({
         title: "",
@@ -96,15 +106,19 @@ const CreateAuction = () => {
       });
       setImages([]);
       setImagePreviews([]);
+      
       toast.success("Auction created successfully!");
+      console.log("✅ Product created successfully");
+      
+      // Navigate immediately to dashboard
       navigate("/dashboard");
     } catch (error) {
-      console.error("Error creating auction:", error);
+      console.error("❌ Error creating auction:", error);
       // If error.data is HTML, show a generic message
       if (error?.status === "PARSING_ERROR") {
-        toast.error("Server error. Please try again later. or add different images");
+        toast.error("Server error. Please try again with different image formats (PNG/JPG).");
       } else {
-        toast.error(error?.data?.message || "Failed to create auction.");
+        toast.error(error?.data?.message || "Failed to create auction. Please try again.");
       }
       return;
     }
@@ -116,14 +130,11 @@ const CreateAuction = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h2 className="text-2xl font-semibold mb-4">Creating Auction...</h2>
-          <p className="text-gray-600">
-            Please wait while we process your request.
-          </p>
-        </div>
-      </div>
+      <LoadingSpinner 
+        size="lg" 
+        text="Creating your auction..." 
+        showBackground={true}
+      />
     );
   }
   // {isError && <div className="text-red-500">{error?.data?.message || "Something went wrong."}</div>}
@@ -317,15 +328,15 @@ const CreateAuction = () => {
                 </div>
                 <div className="mb-4">
                   <label
-                    htmlFor="duration"
+                    htmlFor="bidDuration"
                     className="block mb-2 text-sm font-medium text-gray-700"
                   >
                     Auction Duration (days)
                   </label>
                   <select
-                    id="duration"
-                    name="duration"
-                    value={formData.duration}
+                    id="bidDuration"
+                    name="bidDuration"
+                    value={formData.bidDuration}
                     onChange={handleInputChange}
                     className="w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
                   >

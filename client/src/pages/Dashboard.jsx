@@ -14,8 +14,7 @@ import LoadingSpinner from "../components/LoadingSpinner";
 
 const Dashboard = () => {
   const [viewMode, setViewMode] = useState("grid");
-  const { user } = useSelector((state) => state.auth);
-  // Set default tab based on user role - buyers can't access "myauctions"
+  const user = useSelector((state) => state.auth.user);
   const [activeTab, setActiveTab] = useState(
     user?.role === "buyer" ? "all" : "all"
   );
@@ -24,9 +23,10 @@ const Dashboard = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
 
-  const { data, isLoading, isError } = useGetAllProductsQuery();
+  const { data, isLoading, isError, refetch } = useGetAllProductsQuery();
   const { data: userBidsData, isLoading: bidsLoading } = useGetUserBidsQuery();
-  console.log(data);
+
+  
   const products = data?.products || [];
   const categories = useMemo(() => {
     const uniqueCategories = [
@@ -39,7 +39,7 @@ const Dashboard = () => {
     let filtered = products;
 
     if (activeTab === "mybids") {
-      // Use the user bids data to get products where user has placed bids
+    
       if (userBidsData?.bids) {
         const bidProductIds = userBidsData.bids.map(bid => bid.product?._id).filter(Boolean);
         filtered = products.filter(product => bidProductIds.includes(product._id));
@@ -49,7 +49,8 @@ const Dashboard = () => {
     } else if (activeTab === "myauctions") {
       filtered = filtered.filter((auction) => {
         const sellerId = auction.seller?._id?.toString();
-        const userId = user?.id?.toString();
+        const userId = user?._id?.toString() || user?.id?.toString(); // Handle both _id and id
+        console.log("🔍 Comparing seller:", sellerId, "with user:", userId);
         return sellerId === userId;
       });
     }
@@ -86,7 +87,7 @@ const Dashboard = () => {
     userBidsData?.bids,
   ]);
 
-  // Effect to handle invalid tab access for buyers
+
   useEffect(() => {
     if (user?.role === "buyer" && activeTab === "myauctions") {
       setActiveTab("all");
@@ -133,13 +134,11 @@ const Dashboard = () => {
   // Loading state
   if (isLoading || (activeTab === "mybids" && bidsLoading)) {
     return (
-      <div className="bg-gray-50 min-h-screen w-full pb-12">
-        <div className="container mx-auto px-4 py-8 max-w-6xl">
-          <div className="flex justify-center items-center py-12">
-            <LoadingSpinner size="lg" />
-          </div>
-        </div>
-      </div>
+      <LoadingSpinner 
+        size="lg" 
+        text="Loading auctions..." 
+        showBackground={true}
+      />
     );
   }
 
@@ -161,9 +160,20 @@ const Dashboard = () => {
     <div className="bg-gray-50 min-h-screen w-full pb-12">
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-4 md:mb-0">
-            {user?.role === "buyer" ? "Browse Auctions" : "Auction Dashboard"}
-          </h1>
+          <div className="flex items-center gap-4 mb-4 md:mb-0">
+            <h1 className="text-3xl font-bold text-gray-800">
+              {user?.role === "buyer" ? "Browse Auctions" : "Auction Dashboard"}
+            </h1>
+            <button
+              onClick={() => {
+                console.log("🔄 Manual refresh triggered");
+                refetch();
+              }}
+              className="px-3 py-1 text-sm bg-blue-100 text-blue-600 rounded-md hover:bg-blue-200"
+            >
+              🔄 Refresh
+            </button>
+          </div>
           {/* Only show Create Auction button for sellers and both roles */}
           {(user?.role === "seller" || user?.role === "both") && (
             <Link
