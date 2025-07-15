@@ -11,6 +11,9 @@ export const setSocketIO = (socketInstance) => {
 
 export const createProduct = async (req, res) => {
   try {
+    // Add debugging to see what's being received
+    console.log("📋 Creating product:", req.body.title);
+    
     const {
       title,
       description,
@@ -21,6 +24,20 @@ export const createProduct = async (req, res) => {
       category,
       condition,
     } = req.body;
+
+    // Convert bidDuration to number if it's a string
+    const parsedBidDuration = Number(bidDuration);
+
+    // Validate bidDuration is one of the allowed values
+    const allowedDurations = [3, 5, 7, 10, 14, 30];
+    if (!allowedDurations.includes(parsedBidDuration)) {
+      return res
+        .status(400)
+        .json({ 
+          success: false, 
+          message: `Invalid bid duration. Must be one of: ${allowedDurations.join(', ')} days. Received: ${parsedBidDuration}` 
+        });
+    }
 
     if (
       !title ||
@@ -50,7 +67,7 @@ export const createProduct = async (req, res) => {
     }));
 
     // Calculate endsAt robustly
-    const endsAt = new Date(Date.now() + Number(bidDuration) * 24 * 60 * 60 * 1000);
+    const endsAt = new Date(Date.now() + Number(parsedBidDuration) * 24 * 60 * 60 * 1000);
 
     const product = await Product.create({
       title,
@@ -58,7 +75,7 @@ export const createProduct = async (req, res) => {
       image,
       startingPrice,
       minBidIncrement,
-      bidDuration,
+      bidDuration: parsedBidDuration, // Use the parsed number
       location,
       category,
       condition,
@@ -68,24 +85,46 @@ export const createProduct = async (req, res) => {
       endsAt,
     });
 
-    // Send email to seller
-    await sendEmail(
-      req.user.email,
-      "Pay 5% Admin Fee to List Your Product",
-      `Hi ${req.user.fullName},\n\nYour product has been saved as 'Pending'.\nTo list it for bidding, please pay the 5% admin fee via JazzCash or EasyPaisa, then send the receipt to the admin on WhatsApp.\n\nPlease send the receipt here: https://wa.me/923164963275\n\nThank you!`
-    );
+    console.log("✅ Product created successfully:", product._id);
 
-    // Notify all other users via email
-    const users = await User.find({ _id: { $ne: sellerId } }).select("email");
-    for (const user of users) {
-      await sendEmail(
-        user.email,
-        "New Product Added",
-        `A new product has been added by ${req.user.fullName}, auction titled "${title}". Check it out!`
-      );
-    }
+    // Send immediate response to user first
+    res.status(201).json({
+      success: true,
+      message: "Product Created Successfully",
+      product,
+    });
 
-    // Emit real-time notification for new product listing
+    // Handle email notifications asynchronously (non-blocking)
+    (async () => {
+      try {
+        // Send email to seller
+        await sendEmail(
+          req.user.email,
+          "Pay 5% Admin Fee to List Your Product",
+          `Hi ${req.user.fullName},\n\nYour product has been saved as 'Pending'.\nTo list it for bidding, please pay the 5% admin fee via JazzCash or EasyPaisa, then send the receipt to the admin on WhatsApp.\n\nPlease send the receipt here: https://wa.me/923164963275\n\nThank you!`
+        );
+
+        // Notify other users via email in background (batch processing)
+        const users = await User.find({ _id: { $ne: sellerId } }).select("email").limit(50); // Limit to prevent overwhelming
+        
+        // Send emails in batches to avoid overloading email service
+        const emailPromises = users.map(user => 
+          sendEmail(
+            user.email,
+            "New Product Added",
+            `A new product has been added by ${req.user.fullName}, auction titled "${title}". Check it out!`
+          ).catch(err => console.error(`Failed to send email to ${user.email}:`, err))
+        );
+
+        // Process all emails concurrently instead of sequentially
+        await Promise.allSettled(emailPromises);
+        console.log(`📧 Sent notification emails to ${users.length} users`);
+      } catch (error) {
+        console.error("Background email processing error:", error);
+      }
+    })();
+
+    // Emit real-time notification immediately (this is fast)
     if (io) {
       console.log(`📢 Emitting productListed event for product: ${product._id}`);
       
@@ -102,12 +141,6 @@ export const createProduct = async (req, res) => {
 
       console.log(`📢 Emitted productListed globally for: ${title}`);
     }
-
-    res.status(201).json({
-      success: true,
-      message: "Product Created Successfully",
-      product,
-    });
   } 
  catch (error) {
   console.error(error);
@@ -121,10 +154,13 @@ export const getAllProducts = async (req, res) => {
       "seller",
       "fullName email"
     );
+    
+    console.log(`📊 getAllProducts: Found ${products.length} products`);
+    
     res
       .status(200)
       .json({
-        count: Product.length,
+        count: products.length, // Fixed: was Product.length, should be products.length
         success: true,
         message: "Products fetched successfully",
         products,
