@@ -131,6 +131,29 @@ const Dashboard = () => {
     return "Ending soon";
   }
 
+  // Helper function to get time urgency color based on time remaining
+  function getTimeUrgencyColor(endsAt) {
+    if (!endsAt) return "text-gray-500";
+    
+    const end = new Date(endsAt);
+    const now = new Date();
+    const diff = end - now;
+    
+    if (diff <= 0) return "text-red-500"; // Ended
+    
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+    
+    // 🔴 RED: 1 day or less remaining (urgent)
+    if (days <= 1) return "text-red-500";
+    
+    // 🟠 ORANGE: 2-3 days remaining (warning)  
+    if (days <= 3) return "text-orange-500";
+    
+    // 🟢 GREEN: More than 3 days remaining (safe)
+    return "text-green-500";
+  }
+
   // Loading state
   if (isLoading || (activeTab === "mybids" && bidsLoading)) {
     return (
@@ -299,6 +322,7 @@ const Dashboard = () => {
                     <option value="all">All Status</option>
                     <option value="listed">Active</option>
                     <option value="pending">Pending</option>
+                    <option value="closed">Closed</option>
                     <option value="sold">Sold</option>
                   </select>
                 </div>
@@ -468,18 +492,10 @@ const Dashboard = () => {
                         {activeTab !== "mybids" && (
                           <>
                             <p className="text-sm text-gray-500">
-                              {auction.bids?.length || 0} bid
-                              {(auction.bids?.length || 0) !== 1 ? "s" : ""}
+                              {auction.bidCount || 0} bid
+                              {(auction.bidCount || 0) !== 1 ? "s" : ""}
                             </p>
-                            <p
-                              className={`font-medium ${
-                                getTimeLeft(auction.endsAt) === "Ended"
-                                  ? "text-red-500"
-                                  : getTimeLeft(auction.endsAt).includes("hour")
-                                  ? "text-orange-500"
-                                  : "text-green-500"
-                              }`}
-                            >
+                            <p className={`font-medium ${getTimeUrgencyColor(auction.endsAt)}`}>
                               {getTimeLeft(auction.endsAt)}
                             </p>
                           </>
@@ -521,6 +537,20 @@ const Dashboard = () => {
                           <span className="text-xs font-medium bg-blue-100 text-blue-600 px-2 py-1 rounded capitalize">
                             {auction.category}
                           </span>
+                          {/* Status Badge */}
+                          <span className={`text-xs font-medium px-2 py-1 rounded capitalize ${
+                            auction.status === "closed"
+                              ? "bg-purple-100 text-purple-600"
+                              : auction.status === "sold"
+                              ? "bg-red-100 text-red-600"
+                              : auction.status === "listed"
+                              ? "bg-green-100 text-green-600"
+                              : auction.status === "pending"
+                              ? "bg-yellow-100 text-yellow-600"
+                              : "bg-gray-100 text-gray-600"
+                          }`}>
+                            {auction.status === "listed" ? "Active" : auction.status}
+                          </span>
                           {activeTab === "myauctions" &&
                             auction.seller?._id?.toString() ===
                               user?.id?.toString() && (
@@ -537,15 +567,7 @@ const Dashboard = () => {
                               </span>
                             )}
                         </div>
-                        <p
-                          className={`text-red-500 font-medium ${
-                            getTimeLeft(auction.endsAt) === "Ended"
-                              ? "text-red-500"
-                              : getTimeLeft(auction.endsAt).includes("hour")
-                              ? "text-orange-500"
-                              : "text-green-500"
-                          }`}
-                        >
+                        <p className={`font-medium ${getTimeUrgencyColor(auction.endsAt)}`}>
                           {getTimeLeft(auction.endsAt)}
                         </p>
                       </div>
@@ -564,8 +586,8 @@ const Dashboard = () => {
                         </div>
                         <div className="text-right">
                           <p className="text-sm text-gray-500">
-                            {auction.bids?.length || 0} bid
-                            {(auction.bids?.length || 0) !== 1 ? "s" : ""}
+                            {auction.bidCount || 0} bid
+                            {(auction.bidCount || 0) !== 1 ? "s" : ""}
                           </p>
                           <button className="ml-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
                             View Details

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import {
   ClockIcon,
@@ -17,6 +17,7 @@ import {
   useGetAllBidsQuery,
 } from "../services/productApi";
 import LoadingSpinner from "../components/LoadingSpinner";
+import StartChatButton from "../components/StartChatButton";
 
 const AuctionDetail = () => {
   // All hooks called unconditionally at the top
@@ -40,14 +41,21 @@ const AuctionDetail = () => {
     refetch: refetchBids 
   } = useGetAllBidsQuery(id);
 
-  // Function to calculate time left
-  const calculateTimeLeft = (endsAt) => {
+  const navigate = useNavigate()
+  // Function to calculate time left with proper auction lifecycle logic
+  const calculateTimeLeft = (endsAt, status) => {
     if (!endsAt) return "No end date specified";
 
     const now = new Date();
     const endDate = new Date(endsAt);
     const timeDiff = endDate - now;
 
+    // Special case: If auction is still pending and time is over, keep it pending
+    if (timeDiff <= 0 && status === "pending") {
+      return "Awaiting payment approval";
+    }
+
+    // Normal case: If time is over and auction was listed, it has ended
     if (timeDiff <= 0) return "Auction ended";
 
     const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
@@ -74,22 +82,27 @@ const AuctionDetail = () => {
 
     return {
       id: product._id,
+      _id: product._id, // ✅ Add _id field for StartChatButton component
       title: product.title,
       description: product.description,
       images: product.image?.map((img) => img.url) || [],
       currentBid: product.currentBid || product.startingPrice,
       minBidIncrement: product.minBidIncrement,
       startingPrice: product.startingPrice,
-      timeLeft: calculateTimeLeft(product.endsAt),
+      timeLeft: calculateTimeLeft(product.endsAt, product.status), // Pass status to calculateTimeLeft
       endTime: product.endsAt,
       bidDuration: product.bidDuration,
       seller: {
         id: product.seller?._id,
+        _id: product.seller?._id, // ✅ Add _id field for seller
         name: product.seller?.fullName || "Unknown Seller",
         email: product.seller?.email,
         rating: product.seller?.rating || 4.5,
         auctions: product.seller?.totalAuctions || 0,
       },
+      winner: product.winner, // ✅ Add winner field
+      winningBid: product.winningBid, // ✅ Add winningBid field
+      status: product.status, // ✅ Add status field
       category: product.category,
       condition: product.condition,
       location: product.location,
@@ -137,6 +150,14 @@ const AuctionDetail = () => {
 
   // Handle missing product
   const auction = transformProductToAuction(response?.product);
+  
+  // Debug logging for auction object
+  console.log('🔍 Auction Detail Debug:', {
+    productResponse: response?.product?._id,
+    transformedAuction: auction?._id,
+    auctionObject: auction
+  });
+  
   if (!auction) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -152,6 +173,13 @@ const AuctionDetail = () => {
     );
   }
 
+  // Helper function to check if current user is the seller
+  const isUserSeller = () => {
+    if (!user?._id || !auction?.seller) return false;
+    return auction.seller.id?.toString() === user._id.toString() || 
+           auction.seller._id?.toString() === user._id.toString();
+  };
+
   // Calculate minimum next bid based on highest bid from API or current product bid
   const getMinNextBid = () => {
     if (bidsResponse?.bids && bidsResponse.bids.length > 0) {
@@ -166,8 +194,21 @@ const AuctionDetail = () => {
   const handleBidSubmit = (e) => {
     e.preventDefault();
 
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      addNotification("Please log in to place a bid", "error");
+      return;
+    }
+
     // Check if user is trying to bid on their own auction
-    if (auction.seller?.id?.toString() === user?._id?.toString()) {
+    const isOwnAuction = isUserSeller();
+    
+    if (isOwnAuction) {
+      console.log('🚫 Seller attempting to bid on own auction:', {
+        sellerId: auction.seller?.id || auction.seller?._id,
+        userId: user?._id,
+        auctionId: auction._id
+      });
       addNotification("You cannot bid on your own auction", "error");
       return;
     }
@@ -226,7 +267,53 @@ const AuctionDetail = () => {
       addNotification("Please log in to contact the seller", "info");
       return;
     }
-    window.location.href = `/chat/${auction.seller.id}`;
+    
+    console.log('🔗 Contact Seller clicked - navigating with auction ID:', auction?._id);
+    
+    // Navigate to auction chat using product ID instead of seller ID
+    if (auction?._id) {
+      navigate(`/chat/auction/${auction._id}`);
+    } else {
+      console.error('❌ No auction ID available for navigation');
+      addNotification("Unable to start chat - auction ID missing", "error");
+    }
+  };
+
+  // Function to manually close auction (for testing/admin purposes)
+  const handleCloseAuction = async () => {
+    if (!auction?._id) {
+      addNotification("No auction ID available", "error");
+      return;
+    }
+
+    try {
+      console.log('🔧 Manually closing auction:', auction._id);
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/chat/debug/close-auction/${auction._id}`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        console.log('✅ Auction closed successfully:', data);
+        addNotification('Auction closed and winner assigned!', 'success');
+        
+        // Refetch the product data to get updated information
+        refetch();
+      } else {
+        console.error('❌ Failed to close auction:', data);
+        addNotification(data.message || 'Failed to close auction', 'error');
+      }
+    } catch (error) {
+      console.error('❌ Error closing auction:', error);
+      addNotification('Error closing auction: ' + error.message, 'error');
+    }
   };
 
   return (
@@ -314,7 +401,9 @@ const AuctionDetail = () => {
                   <p className="text-gray-500">Status:</p>
                   <span
                     className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      auction.status === "sold"
+                      auction.status === "closed"
+                        ? "bg-purple-100 text-purple-800"
+                        : auction.status === "sold"
                         ? "bg-red-100 text-red-800"
                         : auction.status === "listed"
                         ? "bg-green-100 text-green-800"
@@ -325,6 +414,8 @@ const AuctionDetail = () => {
                   >
                     {auction.status === "listed"
                       ? "Active"
+                      : auction.status === "closed"
+                      ? "Auction Closed"
                       : auction.status?.charAt(0).toUpperCase() +
                         auction.status?.slice(1)}
                   </span>
@@ -343,16 +434,29 @@ const AuctionDetail = () => {
                 {auction.status === "pending" ? (
                   <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md text-center">
                     <p className="text-yellow-700 font-medium mb-2">
-                      This auction is pending approval
+                      ⏳ This auction is pending approval
                     </p>
-                    <p className="text-sm text-yellow-600">
-                      The seller needs to pay the admin fee before this auction
-                      goes live.
+                    <p className="text-sm text-yellow-600 mb-2">
+                      The seller needs to pay the admin fee before this auction goes live.
                     </p>
-                    {auction.seller?.id?.toString() ===
-                      user?._id?.toString() && (
+                    {auction.timeLeft === "Awaiting payment approval" ? (
+                      <div className="mt-3 p-2 bg-orange-100 border border-orange-200 rounded">
+                        <p className="text-orange-700 text-sm font-medium">
+                          ⚠️ Time expired while awaiting payment
+                        </p>
+                        <p className="text-orange-600 text-xs mt-1">
+                          This auction cannot proceed without admin fee payment
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-yellow-600">
+                        <ClockIcon className="w-4 h-4 inline mr-1" />
+                        Time remaining: {auction.timeLeft}
+                      </div>
+                    )}
+                    {isUserSeller() && (
                       <button className="mt-3 bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-md text-sm">
-                        Pay Admin Fee
+                        💳 Pay Admin Fee to List Auction
                       </button>
                     )}
                   </div>
@@ -367,6 +471,20 @@ const AuctionDetail = () => {
                         : auction.currentBid}
                     </p>
                   </div>
+                ) : auction.status === "closed" ? (
+                  <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-md text-center">
+                    <p className="text-purple-700 font-medium">
+                      🏆 This auction is closed!
+                    </p>
+                    <p className="text-sm text-purple-600 mt-1">
+                      Winner: {auction.winner ? 'Assigned' : 'To be determined'}
+                    </p>
+                    {auction.winningBid && (
+                      <p className="text-sm text-purple-600 mt-1">
+                        Winning bid: ₨{auction.winningBid}
+                      </p>
+                    )}
+                  </div>
                 ) : auction.timeLeft === "Auction ended" ? (
                   <div className="mb-4 p-4 bg-gray-100 rounded-md text-center">
                     <p className="text-gray-600 font-medium">
@@ -377,6 +495,27 @@ const AuctionDetail = () => {
                         ? Math.max(...bidsResponse.bids.map(bid => bid.amount))
                         : auction.currentBid}
                     </p>
+                    {/* Close Auction Button - Show when auction ended but not closed */}
+                    {auction.status !== "closed" && bidsResponse?.bids && bidsResponse.bids.length > 0 && (
+                      <button
+                        onClick={handleCloseAuction}
+                        className="mt-3 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                      >
+                        🏆 Close Auction & Assign Winner
+                      </button>
+                    )}
+                    {/* Show message if no bids received */}
+                    {(!bidsResponse?.bids || bidsResponse.bids.length === 0) && (
+                      <div className="mt-3 p-2 bg-gray-200 rounded">
+                        <p className="text-gray-600 text-sm">
+                          😔 No bids were received for this auction
+                        </p>
+                      </div>
+                    )}
+                    {/* Debug info */}
+                    <div className="mt-2 text-xs text-gray-400">
+                      <p>Status: {auction.status} | Winner: {auction.winner ? 'Yes' : 'No'}</p>
+                    </div>
                   </div>
                 ) : auction.status === "listed" ? (
                   <form onSubmit={handleBidSubmit}>
@@ -389,18 +528,18 @@ const AuctionDetail = () => {
                           type="number"
                           value={bidAmount}
                           onChange={(e) => setBidAmount(e.target.value)}
-                          className="pl-8 w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
+                          className="pl-8 w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                           placeholder={`${minNextBid} or more`}
                           min={minNextBid}
                           step="1"
                           required
-                          disabled={!isAuthenticated || isPlacingBid}
+                          disabled={!isAuthenticated || isPlacingBid || isUserSeller()}
                         />
                       </div>
                       <button
                         type="submit"
                         className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
-                        disabled={!isAuthenticated || isPlacingBid}
+                        disabled={!isAuthenticated || isPlacingBid || isUserSeller()}
                       >
                         {isPlacingBid ? "Placing..." : "Place Bid"}
                       </button>
@@ -414,11 +553,15 @@ const AuctionDetail = () => {
                         to place a bid
                       </p>
                     )}
-                    {auction.seller?.id?.toString() ===
-                      user?._id?.toString() && (
-                      <p className="text-sm text-orange-500 mb-4">
-                        ⚠️ You cannot bid on your own auction
-                      </p>
+                    {isUserSeller() && (
+                      <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-md">
+                        <p className="text-orange-700 font-medium text-sm">
+                          🚫 You cannot bid on your own auction
+                        </p>
+                        <p className="text-orange-600 text-xs mt-1">
+                          As the seller, you are not allowed to place bids on this auction.
+                        </p>
+                      </div>
                     )}
                   </form>
                 ) : (
@@ -433,16 +576,13 @@ const AuctionDetail = () => {
                     </p>
                   </div>
                 )}
-                {/* Contact Seller - Only show when auction ended */}
-                {(auction.timeLeft === "Auction ended" || auction.status === "sold") && (
+                {/* Start Chat - Only show when auction ended, has winner, and status is closed */}
+                {auction.status === "closed" && auction.winner && (
                   <div className="flex space-x-2 mb-6">
-                    <button
-                      onClick={handleContactSeller}
-                      className="flex items-center justify-center flex-grow border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-md"
-                    >
-                      <MessageSquareIcon className="w-4 h-4 mr-2" />
-                      Contact Seller
-                    </button>
+                    <StartChatButton 
+                      product={auction} 
+                      className="flex-grow"
+                    />
                   </div>
                 )}
                 <div className="flex items-center p-3 bg-yellow-50 border border-yellow-200 rounded-md">
@@ -495,15 +635,34 @@ const AuctionDetail = () => {
                     
                     </div>
                   </div>
-                  {/* Contact Seller button - Only show when auction ended */}
-                  {(auction.timeLeft === "Auction ended" || auction.status === "sold") && (
-                    <button
-                      onClick={handleContactSeller}
-                      className="w-full flex items-center justify-center bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-md"
-                    >
-                      <MessageSquareIcon className="w-4 h-4 mr-2" />
-                      Contact Seller
-                    </button>
+                  {/* Contact Seller button - Only show guidance for ended auctions without proper closure */}
+                  {auction.timeLeft === "Auction ended" && 
+                   auction.status !== "closed" && 
+                   bidsResponse?.bids && bidsResponse.bids.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                        <p className="text-blue-700 text-sm font-medium mb-1">
+                          🏆 Auction Ended - Winner Needs Assignment
+                        </p>
+                        <p className="text-blue-600 text-xs">
+                          The auction must be properly closed and winner assigned before chat access is available.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Show message for pending auctions that expired */}
+                  {auction.timeLeft === "Awaiting payment approval" && (
+                    <div className="space-y-2">
+                      <div className="p-3 bg-orange-50 border border-orange-200 rounded-md">
+                        <p className="text-orange-700 text-sm font-medium mb-1">
+                          ⚠️ Payment Required
+                        </p>
+                        <p className="text-orange-600 text-xs">
+                          This auction expired while awaiting admin fee payment. Contact seller directly if interested.
+                        </p>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -520,7 +679,7 @@ const AuctionDetail = () => {
                           Amount
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Time
+                          Date
                         </th>
                       </tr>
                     </thead>

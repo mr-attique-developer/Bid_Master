@@ -37,6 +37,18 @@ const authSlice = createSlice({
         localStorage.setItem("user", JSON.stringify(payload.user));
       }
     );
+
+    // Update state when user profile is fetched
+    builder.addMatcher(
+      authApi.endpoints.getUserProfile.matchFulfilled,
+      (state, { payload }) => {
+        if (payload.user) {
+          state.user = payload.user;
+          state.isAuthenticated = true;
+          localStorage.setItem("user", JSON.stringify(payload.user));
+        }
+      }
+    );
   },
 });
 

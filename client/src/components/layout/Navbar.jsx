@@ -4,6 +4,7 @@ import { BellIcon, MessageSquareIcon, UserIcon, MenuIcon, XIcon } from 'lucide-r
 import { useSelector, useDispatch } from 'react-redux';
 import { useLogoutUserMutation } from '../../services/authApi';
 import { logout, setCredentials } from '../../features/auth/authSlice';
+import { useChatNotification } from '../../contexts/ChatNotificationContext';
 
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -11,6 +12,7 @@ const Navbar = () => {
   const dispatch = useDispatch();
   const { token, user } = useSelector((state) => state.auth);
   const [logoutUser] = useLogoutUserMutation();
+  const { totalUnreadCount } = useChatNotification();
    useEffect(() => {
     if (!token || !user) {
       const storedToken = localStorage.getItem('token');
@@ -64,7 +66,7 @@ const Navbar = () => {
             {token ? (
               <>
                 <div className="relative">
-                  {/* <button onClick={toggleNotifications} className="p-2 rounded-full hover:bg-gray-100">
+                  <button onClick={toggleNotifications} className="p-2 rounded-full hover:bg-gray-100">
                     <BellIcon className="w-6 h-6 text-gray-600" />
                     {notifications.length > 0 && (
                       <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500"></span>
@@ -91,12 +93,17 @@ const Navbar = () => {
                         </Link>
                       </div>
                     </div>
-                  )} */}
+                  )}
                 </div>
 
-                <Link to="/chat" className="p-2 rounded-full hover:bg-gray-100">
+                {/* <Link to="/dashboard" className="p-2 rounded-full hover:bg-gray-100 relative" title="My Auctions">
                   <MessageSquareIcon className="w-6 h-6 text-gray-600" />
-                </Link>
+                  {totalUnreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {totalUnreadCount > 9 ? '9+' : totalUnreadCount}
+                    </span>
+                  )}
+                </Link> */}
 
                 <div className="relative group">
                   <Link to="/profile" className="flex items-center space-x-2 p-2 rounded-full hover:bg-gray-100">

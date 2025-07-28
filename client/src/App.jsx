@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { useGetUserProfileQuery } from "./services/authApi";
 import Navbar from "./components/layout/Navbar";
@@ -9,10 +9,11 @@ import Dashboard from "./pages/Dashboard";
 import AuctionDetail from "./pages/AuctionDetail";
 import CreateAuction from "./pages/CreateAuction";
 import Profile from "./pages/Profile";
-import Chat from "./pages/Chat";
+import Chat from "./pages/Chat_new";
 import Login from "./components/auth/Login";
 import Register from "./components/auth/Register";
 import NotificationProvider from "./components/ui/NotificationProvider";
+import { ChatNotificationProvider } from "./contexts/ChatNotificationContext";
 import LoadingSpinner from "./components/LoadingSpinner";
 import { setCredentials } from "./features/auth/authSlice";
 import GuestRoute from "./components/GuestRoutes";
@@ -24,10 +25,23 @@ export function App() {
   // Get auth state from Redux
   const { token, user } = useSelector((state) => state.auth);
 
+
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
-    if (storedToken && !token) {
-      dispatch(setCredentials({ token: storedToken, user: null }));
+    const storedUser = localStorage.getItem("user");
+    
+    if (storedToken && storedUser && !token) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        dispatch(setCredentials({ 
+          token: storedToken, 
+          user: parsedUser 
+        }));
+      } catch (error) {
+        console.error('Error parsing stored user:', error);
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+      }
     }
   }, [token, dispatch]);
   const { isLoading } = useGetUserProfileQuery();
@@ -43,49 +57,48 @@ export function App() {
   return (
     <BrowserRouter>
       <NotificationProvider>
-        <div className="flex flex-col min-h-screen bg-gray-50">
-          <Navbar />
-          <main className="flex-grow">
-            <Routes>
-              {/* Public routes */}
-              <Route path="/" element={<Home />} />
-              <Route element={<GuestRoute />}>
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-              </Route>
+        <ChatNotificationProvider>
+          <div className="flex flex-col min-h-screen bg-gray-50">
+            <Navbar />
+            <main className="flex-grow">
+              <Routes>
+                {/* Public routes */}
+                <Route path="/" element={<Home />} />
+                <Route element={<GuestRoute />}>
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                </Route>
 
-              {/* Protected routes */}
-              <Route element={<ProtectedRoute />}>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route 
-                  path="/create-auction" 
-                  element={
-                    <SellerRoute>
-                      <CreateAuction />
-                    </SellerRoute>
-                  } 
-                />
-                <Route path="/auction/:id" element={<AuctionDetail />} />
+                {/* Protected routes */}
+                <Route element={<ProtectedRoute />}>
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route 
+                    path="/create-auction" 
+                    element={
+                      <SellerRoute>
+                        <CreateAuction />
+                      </SellerRoute>
+                    } 
+                  />
+                  <Route path="/auction/:id" element={<AuctionDetail />} />
 
-                <Route
-                  path="/profile"
-                  element={
-                    token ? <Profile /> : <Navigate to="/login" replace />
-                  }
-                />
-                <Route
-                  path="/chat"
-                  element={token ? <Chat /> : <Navigate to="/login" replace />}
-                />
-                <Route
-                  path="/chat/:userId"
-                  element={token ? <Chat /> : <Navigate to="/login" replace />}
-                />
-              </Route>
-            </Routes>
-          </main>
-          <Footer />
-        </div>
+                  <Route
+                    path="/profile"
+                    element={
+                      token ? <Profile /> : <Navigate to="/login" replace />
+                    }
+                  />
+                  <Route
+                    path="/chat/:productId"
+                    element={token ? <Chat /> : <Navigate to="/login" replace />}
+                  />
+                 
+                </Route>
+              </Routes>
+            </main>
+            <Footer />
+          </div>
+        </ChatNotificationProvider>
       </NotificationProvider>
     </BrowserRouter>
   );

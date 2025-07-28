@@ -31,7 +31,7 @@ const Home = () => {
       currentBid: product.currentBid || product.startingPrice,
       category: product.category?.toLowerCase() || 'other',
       timeLeft: calculateTimeLeft(product.endsAt),
-      bids: product.bids?.length || 0,
+      bids: product.bidCount || 0, // ✅ Use bidCount from backend instead of bids.length
       status: product.status
     }));
   };
