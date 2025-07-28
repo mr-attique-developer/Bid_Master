@@ -38,7 +38,7 @@ const productSchema = mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "listed", "sold"],
+      enum: ["pending", "listed", "closed", "sold"],
       default: "pending",
     },
     adminFeePaid: {
@@ -83,6 +83,15 @@ const productSchema = mongoose.Schema(
       default: "Local Pickup Only",
     },
     endsAt: { type: Date },
+    winner: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    winningBid: {
+      type: Number,
+      default: null,
+    },
     seller: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

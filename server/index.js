@@ -6,15 +6,18 @@ import connectDB from "./config/db.js";
 import userRoutes from "./routes/user.routes.js";
 import productRoutes from "./routes/product.routes.js";
 import bidRoutes from "./routes/bid.routes.js";
+import chatRoutes from "./routes/chat.routes.js";
 import { setSocketIO } from "./controllers/bid.controller.js";
 import { setSocketIO as setProductSocketIO } from "./controllers/product.controller.js";
+import { setSocketIO as setChatSocketIO } from "./controllers/chat.controller.js";
 import { setSocketIOForCron } from "./crons/auctionChecker.js";
 import bodyParser from "body-parser";
 import "./crons/auctionChecker.js";
 import http from "http";
 import { Server } from "socket.io";
-import Chat from "./models/chat.model.js"
-import chatRoutes from "./routes/chat.routes.js";
+import Chat from "./models/chat.model.js";
+import Product from "./models/product.model.js";
+import User from "./models/user.model.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -32,6 +35,7 @@ export { io };
 // Set socket instance in controllers
 setSocketIO(io);
 setProductSocketIO(io);
+setChatSocketIO(io);
 setSocketIOForCron(io);
 
 app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
@@ -52,73 +56,229 @@ app.get("/", (req, res) => {
 });
 
 // ✅ SOCKET.IO CONNECTION
+// In server/index.js
+// ✅ SOCKET.IO CONNECTION - Updated and fixed
 io.on("connection", (socket) => {
   console.log(`🟢 Socket connected: ${socket.id}`);
 
-  // ✅ Join auction room for bid notifications
-  socket.on("joinAuction", ({ productId, userId }) => {
-    const roomName = `auction-${productId}`;
-    socket.join(roomName);
-    console.log(`✅ User ${userId} joined auction room: ${roomName}`);
-    console.log(`📊 Room ${roomName} now has ${io.sockets.adapter.rooms.get(roomName)?.size || 0} users`);
-  });
-
-  // ✅ Leave auction room
-  socket.on("leaveAuction", ({ productId, userId }) => {
-    const roomName = `auction-${productId}`;
-    socket.leave(roomName);
-    console.log(`❌ User ${userId} left auction room: ${roomName}`);
-    console.log(`📊 Room ${roomName} now has ${io.sockets.adapter.rooms.get(roomName)?.size || 0} users`);
-  });
-
-  // ✅ Securely join chat room
   socket.on("joinRoom", async ({ roomId, userId }) => {
     try {
-      const chat = await Chat.findById(roomId);
-      if (!chat) return socket.emit("error", { message: "Chat not found" });
+      console.log(`👤 User ${userId} attempting to join room ${roomId}`);
 
-      const isParticipant = chat.participants.some(
-        (id) => id.toString() === userId
-      );
-      if (!isParticipant)
-        return socket.emit("error", { message: "Access denied" });
+      if (roomId.startsWith('auction-chat-')) {
+        const productId = roomId.replace('auction-chat-', '');
+        
+        // Validate ObjectId
+        const mongoose = await import('mongoose');
+        if (!mongoose.default.Types.ObjectId.isValid(productId)) {
+          return socket.emit("error", { message: "Invalid product ID" });
+        }
+
+        const product = await Product.findById(productId).populate('seller winner');
+
+        if (!product) {
+          return socket.emit("error", { message: "Product not found" });
+        }
+
+        if (!product.winner || product.status !== 'closed') {
+          return socket.emit("error", { message: "Auction not closed or has no winner" });
+        }
+
+        const isAuthorized = product.seller._id.toString() === userId || product.winner._id.toString() === userId;
+
+        if (!isAuthorized) {
+          return socket.emit("error", { message: "Access denied - not auction participant" });
+        }
+
+        socket.join(roomId);
+        console.log(`✅ User ${userId} joined auction chat room ${roomId}`);
+        
+        // Send confirmation to user
+        socket.emit("joinedRoom", { 
+          roomId, 
+          message: "Successfully joined auction chat",
+          product: {
+            title: product.title,
+            seller: product.seller.fullName,
+            winner: product.winner.fullName
+          }
+        });
+        return;
+      }
+
+      // Regular chat room logic
+      const chat = await Chat.findById(roomId);
+      if (!chat) {
+        return socket.emit("error", { message: "Chat not found" });
+      }
+
+      const isParticipant = chat.participants.some(id => id.toString() === userId);
+      if (!isParticipant) {
+        return socket.emit("error", { message: "Access denied - not a participant" });
+      }
 
       socket.join(roomId);
       console.log(`✅ User ${userId} joined chat room ${roomId}`);
+      socket.emit("joinedRoom", { roomId, message: "Successfully joined chat" });
+      
     } catch (err) {
       console.error("❌ joinRoom error:", err);
-      socket.emit("error", { message: "Server error" });
+      socket.emit("error", { message: "Server error while joining room" });
     }
   });
 
-  // ✅ Send message securely
   socket.on("sendMessage", async ({ roomId, senderId, text }) => {
     try {
+      console.log(`💬 Message from ${senderId} in room ${roomId}: ${text}`);
+
+      if (!text || text.trim() === '') {
+        return socket.emit("error", { message: "Message cannot be empty" });
+      }
+
+      if (roomId.startsWith('auction-chat-')) {
+        const productId = roomId.replace('auction-chat-', '');
+        
+        // Validate ObjectId
+        const mongoose = await import('mongoose');
+        if (!mongoose.default.Types.ObjectId.isValid(productId)) {
+          return socket.emit("error", { message: "Invalid product ID" });
+        }
+
+        const product = await Product.findById(productId);
+
+        if (!product || !product.winner || product.status !== 'closed') {
+          return socket.emit("error", { message: "Product not found, no winner, or auction not closed" });
+        }
+
+        const isAuthorized = product.seller.toString() === senderId || product.winner.toString() === senderId;
+        if (!isAuthorized) {
+          return socket.emit("error", { message: "Access denied - not auction participant" });
+        }
+
+        // Find or create chat
+        let chat = await Chat.findOne({
+          product: productId,
+          seller: product.seller,
+          winner: product.winner
+        });
+
+        if (!chat) {
+          console.log("🔨 Creating new chat for auction");
+          chat = new Chat({
+            product: productId,
+            seller: product.seller,
+            winner: product.winner,
+            participants: [product.seller, product.winner],
+            messages: []
+          });
+        }
+
+        // Create message object
+        const message = {
+          sender: senderId,
+          text: text.trim(),
+          timestamp: new Date()
+        };
+
+        // Add message to chat
+        chat.messages.push(message);
+        await chat.save();
+
+        // Get sender details for populated response
+        const sender = await User.findById(senderId, 'fullName email');
+
+        const populatedMessage = {
+          _id: chat.messages[chat.messages.length - 1]._id, // Get the ID of the newly added message
+          sender: {
+            _id: sender._id,
+            fullName: sender.fullName,
+            email: sender.email
+          },
+          text: text.trim(),
+          timestamp: message.timestamp
+        };
+
+        // Emit to all users in the room
+        io.to(roomId).emit("receiveMessage", populatedMessage);
+        
+        // Confirm to sender
+        socket.emit("messageSent", { 
+          success: true, 
+          message: populatedMessage,
+          roomId 
+        });
+
+        console.log(`✅ Message sent in auction chat room ${roomId}`);
+        return;
+      }
+
+      // Regular chat logic
       const chat = await Chat.findById(roomId);
-      if (!chat) return socket.emit("error", { message: "Chat not found" });
+      if (!chat) {
+        return socket.emit("error", { message: "Chat not found" });
+      }
 
-      const isParticipant = chat.participants.some(
-        (id) => id.toString() === senderId
-      );
-      if (!isParticipant)
-        return socket.emit("error", { message: "Not allowed" });
+      const isParticipant = chat.participants.some(id => id.toString() === senderId);
+      if (!isParticipant) {
+        return socket.emit("error", { message: "Access denied - not a participant" });
+      }
 
-      const message = { sender: senderId, text, timestamp: new Date() };
+      // Add message to regular chat
+      const message = {
+        sender: senderId,
+        text: text.trim(),
+        timestamp: new Date()
+      };
+
       chat.messages.push(message);
       await chat.save();
 
-      io.to(roomId).emit("receiveMessage", message);
+      const sender = await User.findById(senderId, 'fullName email');
+      const populatedMessage = {
+        _id: chat.messages[chat.messages.length - 1]._id,
+        sender: {
+          _id: sender._id,
+          fullName: sender.fullName,
+          email: sender.email
+        },
+        text: text.trim(),
+        timestamp: message.timestamp
+      };
+
+      io.to(roomId).emit("receiveMessage", populatedMessage);
+      socket.emit("messageSent", { 
+        success: true, 
+        message: populatedMessage,
+        roomId 
+      });
+
+      console.log(`✅ Message sent in regular chat room ${roomId}`);
+
     } catch (error) {
       console.error("❌ sendMessage error:", error);
-      socket.emit("error", { message: "Server error" });
+      socket.emit("error", { 
+        message: "Server error while sending message",
+        details: error.message 
+      });
     }
   });
 
+  // ✅ NEW: Handle typing indicators
+  socket.on("typing", ({ roomId, userId, isTyping }) => {
+    socket.to(roomId).emit("userTyping", { userId, isTyping });
+  });
+
+  // ✅ NEW: Handle user leaving room
+  socket.on("leaveRoom", ({ roomId, userId }) => {
+    socket.leave(roomId);
+    console.log(`👋 User ${userId} left room ${roomId}`);
+    socket.emit("leftRoom", { roomId });
+  });
+
   socket.on("disconnect", () => {
-    console.log("🔌 Client disconnected");
+    console.log(`🔌 Socket disconnected: ${socket.id}`);
   });
 });
-
 // DB Connection
 connectDB();
 

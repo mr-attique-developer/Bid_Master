@@ -1,7 +1,67 @@
 import { cloudinary } from "../config/cloudinaryConfig.js";
 import Product from "../models/product.model.js";
 import User from "../models/user.model.js";
+import Bid from "../models/bid.model.js";
 import sendEmail from "../utils/email.js";
+
+// Function to determine auction winner and update product
+export const determineAuctionWinner = async (productId) => {
+  try {
+    const product = await Product.findById(productId).populate("seller", "fullName email");
+    if (!product) return null;
+
+    // Check if auction has ended
+    const now = new Date();
+    if (product.endsAt && new Date(product.endsAt) <= now && product.status === "listed") {
+      // Find the highest bid
+      const highestBid = await Bid.findOne({ product: productId })
+        .sort({ amount: -1 })
+        .populate("bidder", "fullName email");
+
+      if (highestBid) {
+        // Update product with winner information
+        product.winner = highestBid.bidder._id;
+        product.winningBid = highestBid.amount;
+        product.status = "closed"; // ✅ Changed from "sold" to "closed"
+        await product.save();
+
+        // Send notification emails
+        try {
+          // Email to winner
+          await sendEmail(
+            highestBid.bidder.email,
+            "Congratulations! You Won the Auction",
+            `Hi ${highestBid.bidder.fullName},\n\nCongratulations! You have won the auction for "${product.title}" with a bid of ₨${highestBid.amount}.\n\nPlease contact the seller to arrange payment and delivery. You can now chat with the seller through our platform.\n\nThank you for using BidMaster!`
+          );
+
+          // Email to seller
+          await sendEmail(
+            product.seller.email,
+            "Your Auction Has Ended",
+            `Hi ${product.seller.fullName},\n\nYour auction for "${product.title}" has ended. The winning bid is ₨${highestBid.amount} by ${highestBid.bidder.fullName}.\n\nPlease contact the winner to arrange payment and delivery. You can now chat with the winner through our platform.\n\nThank you for using BidMaster!`
+          );
+        } catch (emailError) {
+          console.error("Error sending winner notification emails:", emailError);
+        }
+
+        return {
+          product,
+          winner: highestBid.bidder,
+          winningBid: highestBid.amount,
+        };
+      } else {
+        // No bids, auction ended without winner
+        product.status = "listed"; // Keep as listed or create "expired" status
+        await product.save();
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error determining auction winner:", error);
+    return null;
+  }
+};
 
 // Socket.IO instance
 let io;
@@ -157,13 +217,35 @@ export const getAllProducts = async (req, res) => {
     
     console.log(`📊 getAllProducts: Found ${products.length} products`);
     
+    // ✅ Add bid count for each product
+    const productsWithBidCount = await Promise.all(
+      products.map(async (product) => {
+        // Get bid count for this product
+        const bidCount = await Bid.countDocuments({ product: product._id });
+        
+        // Get current highest bid
+        const highestBid = await Bid.findOne({ product: product._id })
+          .sort({ amount: -1 })
+          .select('amount');
+        
+        // Convert to plain object and add bid info
+        const productObj = product.toObject();
+        productObj.bidCount = bidCount;
+        productObj.currentBid = highestBid ? highestBid.amount : product.startingPrice;
+        
+        return productObj;
+      })
+    );
+    
+    console.log(`✅ Added bid counts for ${productsWithBidCount.length} products`);
+    
     res
       .status(200)
       .json({
         count: products.length, // Fixed: was Product.length, should be products.length
         success: true,
         message: "Products fetched successfully",
-        products,
+        products: productsWithBidCount,
       });
   } catch (error) {
     console.error(error);

@@ -1,6 +1,5 @@
 import Bid from "../models/bid.model.js";
 import Product from "../models/product.model.js";
-import User from "../models/user.model.js";
 
 // Import io from index.js (we'll need to set this up)
 let io;
@@ -33,6 +32,23 @@ export const placeBid = async (req, res) => {
           message: "Product not found or not available for bidding",
         });
     }
+
+    // 🚫 SELLER PROTECTION: Prevent sellers from bidding on their own products
+    if (product.seller._id.toString() === userId.toString()) {
+      console.log('🚫 Seller attempted to bid on own product:', {
+        sellerId: product.seller._id.toString(),
+        userId: userId.toString(),
+        productId: productId,
+        productTitle: product.title
+      });
+      return res
+        .status(403)
+        .json({
+          success: false,
+          message: "You cannot bid on your own auction",
+        });
+    }
+
     const highestBid = await Bid.findOne({ product: productId })
       .sort({ amount: -1 })
       .limit(1);

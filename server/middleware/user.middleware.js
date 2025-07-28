@@ -3,14 +3,23 @@ import User from "../models/user.model.js"
 
 const protect = async(req,res,next) =>{
     let token
-    if(req.cookies){
+    
+    // First try to get token from cookies
+    if(req.cookies && req.cookies.token){
         token = req.cookies.token
     }
-    // console.log("middleware token ",token)
+    // If no cookie token, try Authorization header
+    else if(req.headers.authorization && req.headers.authorization.startsWith('Bearer ')){
+        token = req.headers.authorization.split(' ')[1]
+    }
+    
+    console.log("middleware token source:", req.cookies?.token ? "cookie" : req.headers.authorization ? "header" : "none")
+    console.log("middleware token:", token ? "present" : "missing")
+    
     if(!token){
         return res.status(401).json({
             success: false,
-            message: "No Token No authorized to access this route",
+            message: "No Token, not authorized to access this route",
         })
     }
     try {
@@ -19,13 +28,12 @@ const protect = async(req,res,next) =>{
         if(!user){
             return res.status(401).json({
                 success: false,
-                message: "User Not  authorized to access this route",
+                message: "User not authorized to access this route",
             })
         }
  
-        // console.log(decoded)
+        console.log("middleware user:", user.fullName)
         req.user = user
-        // console.log(req.user)
         next()
     } catch (error) {
         console.log(error.message)
