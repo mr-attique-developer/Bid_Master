@@ -7,6 +7,7 @@ import {
   ShoppingBagIcon,
   ClipboardListIcon,
   LogOutIcon,
+  MessageSquareIcon,
   Loader,
 } from "lucide-react";
 import {
@@ -171,9 +172,9 @@ const Profile = () => {
                 </button>
                 <Link
                   to="/chat"
-                  className="flex items-center w-full px-4 py-2 rounded-md text-left text-gray-700 hover:bg-gray-50"
+                  className="flex items-center w-full px-4 py-2 rounded-md text-left text-gray-700 hover:bg-gray-50 transition-colors"
                 >
-                  <UserIcon className="h-5 w-5 mr-3" />
+                  <MessageSquareIcon className="h-5 w-5 mr-3" />
                   Messages
                 </Link>
                 <button
@@ -295,7 +296,7 @@ const Profile = () => {
                     <div className="bg-purple-50 p-4 rounded-md">
                       <p className="text-sm text-gray-600">Won Auctions</p>
                       <p className="text-2xl font-bold text-purple-600">
-                        {userBidsData?.bids?.filter(bid => bid.product?.status === 'sold').length || 0}
+                        {userBidsData?.wonAuctions || 0}
                       </p>
                     </div>
                   </div>
@@ -369,13 +370,16 @@ const Profile = () => {
                               </td>
                               <td className="px-4 py-3 whitespace-nowrap text-right">
                                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                  bid.product?.status === 'sold' 
+                                  bid.product?.winner && bid.product.winner === data?.user?._id
+                                    ? 'bg-yellow-100 text-yellow-800'
+                                    : bid.product?.status === 'sold' 
                                     ? 'bg-green-100 text-green-800'
                                     : bid.product?.status === 'listed'
                                     ? 'bg-blue-100 text-blue-800'
                                     : 'bg-gray-100 text-gray-800'
                                 }`}>
-                                  {bid.product?.status === 'sold' ? 'Completed' :
+                                  {bid.product?.winner && bid.product.winner === data?.user?._id ? 'WON 🏆' :
+                                   bid.product?.status === 'sold' ? 'Completed' :
                                    bid.product?.status === 'listed' ? 'Active' : 
                                    bid.product?.status?.charAt(0).toUpperCase() + bid.product?.status?.slice(1)}
                                 </span>
@@ -395,6 +399,86 @@ const Profile = () => {
                       >
                         Browse Auctions
                       </Link>
+                    </div>
+                  )}
+                  
+                  {/* Won Auctions Section */}
+                  {userBidsData?.bids && userBidsData.bids.some(bid => 
+                    bid.product?.winner && 
+                    bid.product.winner === data?.user?._id
+                  ) && (
+                    <div className="mt-8">
+                      <h3 className="font-medium text-lg mb-3 text-green-600">🎉 My Won Auctions</h3>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-green-50">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Won Item
+                              </th>
+                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Winning Bid
+                              </th>
+                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Won Date
+                              </th>
+                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Actions
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {userBidsData.bids
+                              .filter(bid => 
+                                bid.product?.winner && 
+                                bid.product.winner === data?.user?._id
+                              )
+                              .map((bid, index) => (
+                                <tr key={`won-${bid._id || index}`} className="bg-green-50/30">
+                                  <td className="px-4 py-3 whitespace-nowrap">
+                                    <div className="flex items-center">
+                                      <div className="h-10 w-10 flex-shrink-0 mr-3">
+                                        <img 
+                                          className="h-10 w-10 rounded-md object-cover border-2 border-green-200" 
+                                          src={bid.product?.image?.[0]?.url || '/placeholder-image.jpg'}
+                                          alt={bid.product?.title || 'Won Product'} 
+                                        />
+                                      </div>
+                                      <div>
+                                        <div className="text-sm font-medium text-gray-900 flex items-center">
+                                          <Link 
+                                            to={`/auction/${bid.product?._id}`}
+                                            className="hover:text-green-600 flex items-center"
+                                          >
+                                            {bid.product?.title || 'Unknown Product'}
+                                            <span className="ml-2 text-green-600">👑</span>
+                                          </Link>
+                                        </div>
+                                        <div className="text-xs text-gray-500">
+                                          #{bid.product?._id?.slice(-6) || 'N/A'}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-green-600 font-semibold">
+                                    ₨{bid.product?.winningBid || bid.amount}
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-500">
+                                    {new Date(bid.product?.endsAt || bid.createdAt).toLocaleDateString()}
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-right">
+                                    <Link
+                                      to={`/chat/${bid.product?._id}`}
+                                      className="inline-flex items-center px-3 py-1 border border-transparent text-xs leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                    >
+                                      Contact Seller
+                                    </Link>
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   )}
                 </div>

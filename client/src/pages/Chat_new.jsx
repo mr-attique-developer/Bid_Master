@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format, isToday, isYesterday } from 'date-fns';
 import { 
   Search, 
   Send, 
@@ -32,6 +32,28 @@ const getInitials = (name) => {
     .join('');
 };
 
+// WhatsApp-style time formatting
+const formatMessageTime = (timestamp) => {
+  if (!timestamp) return 'Now';
+  
+  const messageDate = new Date(timestamp);
+  const now = new Date();
+  
+  if (isToday(messageDate)) {
+    // Today: show time only in 12-hour format (e.g., "2:30 PM")
+    return format(messageDate, 'h:mm a');
+  } else if (isYesterday(messageDate)) {
+    // Yesterday: show "Yesterday" with time (e.g., "Yesterday 2:30 PM")
+    return `Yesterday ${format(messageDate, 'h:mm a')}`;
+  } else if (now.getTime() - messageDate.getTime() < 7 * 24 * 60 * 60 * 1000) {
+    // Within last week: show day name with time (e.g., "Monday 2:30 PM")
+    return `${format(messageDate, 'EEEE')} ${format(messageDate, 'h:mm a')}`;
+  } else {
+    // Older: show date with time (e.g., "12/01/2024 2:30 PM")
+    return `${format(messageDate, 'dd/MM/yyyy')} ${format(messageDate, 'h:mm a')}`;
+  }
+};
+
 const Chat = () => {
   const { productId } = useParams();
   const navigate = useNavigate();
@@ -55,6 +77,7 @@ const Chat = () => {
   
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
+  const messageInputRef = useRef(null); // Add ref for input field
   const typingTimeoutRef = useRef(null);
   const refetchTimeoutRef = useRef(null);
   const notificationTimeoutRef = useRef(null);
@@ -107,8 +130,13 @@ const Chat = () => {
     const handleReceiveMessage = (data) => {
       console.log('💬 Received new message via socket:', data);
       
-      // Update unread count if message is not from current chat or user is viewing chat list
-      if (data.productId !== selectedChatId || showChatList) {
+      // Don't show notification if the message is from the current user (sender)
+      const isFromCurrentUser = data.sender?._id === user?._id || data.senderId === user?._id;
+      
+      // Update unread count and show notification only if:
+      // 1. Message is not from current user (not sender)
+      // 2. Message is not from current chat or user is viewing chat list
+      if (!isFromCurrentUser && (data.productId !== selectedChatId || showChatList)) {
         setUnreadCounts(prev => ({
           ...prev,
           [data.productId]: (prev[data.productId] || 0) + 1
@@ -123,20 +151,17 @@ const Chat = () => {
         });
       }
       
-      // Debounce refetch to prevent multiple calls
-      if (refetchTimeout) clearTimeout(refetchTimeout);
-      refetchTimeout = setTimeout(() => {
-        console.log('🔄 Refetching chats...');
-        refetchCurrentChat();
-        refetchAuctionChats();
-      }, 200);
+      // Always refetch immediately for real-time updates
+      console.log('🔄 Refetching chats for real-time update...');
+      refetchCurrentChat();
+      refetchAuctionChats();
     };
 
     const handleChatNotification = (data) => {
       console.log('🔔 Received chat notification:', data);
       
-      // Only show notification if it's for current user (they are the receiver)
-      if (data.userId === user?._id) {
+      // Only show notification if it's for current user (they are the receiver) and not the sender
+      if (data.userId === user?._id && data.senderId !== user?._id) {
         // Update unread count
         setUnreadCounts(prev => ({
           ...prev,
@@ -150,6 +175,11 @@ const Chat = () => {
           productTitle: data.productTitle || 'New Message',
           productId: data.productId
         });
+        
+        // Trigger notification API refetch for the notification icon
+        setTimeout(() => {
+          refetchAuctionChats();
+        }, 500);
       }
     };
 
@@ -292,8 +322,8 @@ const Chat = () => {
 
   // Scroll functions
   const scrollToBottom = useCallback(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
   }, []);
 
@@ -313,6 +343,19 @@ const Chat = () => {
     }
   }, [productId]);
 
+  // Auto-focus input when chat is selected
+  useEffect(() => {
+    if (selectedChatId && !showChatList && messageInputRef.current) {
+      console.log('🎯 Auto-focusing message input for chat:', selectedChatId);
+      // Small delay to ensure the input is rendered
+      const focusTimer = setTimeout(() => {
+        messageInputRef.current?.focus();
+      }, 100);
+      
+      return () => clearTimeout(focusTimer);
+    }
+  }, [selectedChatId, showChatList]);
+
   // Join/leave socket rooms
   useEffect(() => {
     if (selectedChatId && isConnected) {
@@ -327,30 +370,58 @@ const Chat = () => {
 
   // Scroll to bottom when messages change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesContainerRef.current) {
+      // Use setTimeout to ensure scroll happens after DOM update
+      setTimeout(() => {
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+        }
+      }, 100);
+    }
   }, [currentChatData?.chat?.messages]);
 
   // Handle sending messages
   const handleSendMessage = useCallback(async (e) => {
     e.preventDefault();
-    if (!message.trim() || !selectedChatId || !user || isSendingMessage) return;
+    console.log('🚀 handleSendMessage called with message:', message);
+    
+    if (!message.trim() || !selectedChatId || !user || isSendingMessage) {
+      console.log('❌ Message sending blocked:', { 
+        hasMessage: !!message.trim(), 
+        hasChatId: !!selectedChatId, 
+        hasUser: !!user, 
+        isSending: isSendingMessage 
+      });
+      return;
+    }
 
     const messageText = message.trim();
-    setMessage(''); // Clear input immediately for better UX
+    console.log('📝 Sending message and clearing input...');
 
     try {
-      // Only send via API - server will handle socket emission
+      // Send via API - server will handle socket emission
       console.log('📤 Sending message via API...');
-      await sendMessageMutation({
+      const result = await sendMessageMutation({
         productId: selectedChatId,
         text: messageText
       }).unwrap();
 
-      console.log('✅ Message sent via API successfully');
+      console.log('✅ Message sent via API successfully:', result);
+      
+      // Clear input only after successful send
+      console.log('🧹 Clearing input field after successful send...');
+      setMessage('');
+      
+      // Focus back to input for better UX
+      setTimeout(() => {
+        if (messageInputRef.current) {
+          messageInputRef.current.focus();
+        }
+      }, 100);
+      
     } catch (error) {
       console.error('❌ Error sending message:', error);
-      // Restore message on error
-      setMessage(messageText);
+      // Don't clear input on error so user can retry
     }
   }, [message, selectedChatId, user, isSendingMessage, sendMessageMutation]);
 
@@ -401,7 +472,7 @@ const Chat = () => {
           productTitle: chat.product?.title || 'Unknown Product',
           winningBid: chat.product?.winningBid,
           lastMessage: lastMessage?.text || 'No messages yet',
-          time: lastMessage && lastMessage.timestamp ? formatDistanceToNow(new Date(lastMessage.timestamp), { addSuffix: true }) : '',
+          time: lastMessage && lastMessage.timestamp ? formatMessageTime(lastMessage.timestamp) : '',
           unread: 0, // TODO: Implement read status
           avatar: null,
           online: false, // TODO: Implement online status
@@ -434,7 +505,7 @@ const Chat = () => {
 
   // Main render - using the new enhanced UI
   return (
-    <div className="bg-gray-50 min-h-screen w-full">
+    <div className="bg-gray-50 w-full" style={{ height: '100vh', overflow: 'hidden' }}>
       {/* WhatsApp-style notification */}
       {newMessageNotification && (
         <div className="fixed top-4 right-4 z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-4 max-w-sm animate-slide-in-right">
@@ -471,9 +542,9 @@ const Chat = () => {
         </div>
       )}
       
-      <div className="container mx-auto max-w-6xl h-screen flex flex-col">
+      <div className="container mx-auto max-w-6xl h-full flex flex-col relative">
         {/* Enhanced Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg border-b border-gray-200 px-4 py-4">
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg border-b border-gray-200 px-4 py-4 relative z-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               {!showChatList && (
@@ -485,41 +556,52 @@ const Chat = () => {
                 </button>
               )}
               <div className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                <MessageSquare className="h-6 w-6 text-white" />
+                {!showChatList && selectedChatId && currentChatData?.chat ? (
+                  (() => {
+                    const chat = currentChatData.chat;
+                    const otherUser = user?._id === chat.seller?._id ? chat.winner : chat.seller;
+                    return otherUser?.profilePicture ? (
+                      <img 
+                        src={otherUser.profilePicture} 
+                        alt={otherUser.fullName} 
+                        className="h-10 w-10 rounded-full object-cover" 
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                        {getInitials(otherUser?.fullName)}
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <MessageSquare className="h-6 w-6 text-white" />
+                )}
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-white">
-                  {showChatList ? 'Auction Chat' : 'Chat Messages'}
+                  {showChatList ? 'Auction Chat' : (
+                    selectedChatId && currentChatData?.chat ? (
+                      (() => {
+                        const chat = currentChatData.chat;
+                        const otherUser = user?._id === chat.seller?._id ? chat.winner : chat.seller;
+                        return otherUser?.fullName || 'Unknown User';
+                      })()
+                    ) : 'Chat Messages'
+                  )}
                 </h1>
                 <p className="text-blue-100 text-sm">
                   {showChatList 
                     ? `${chatList.length} conversation${chatList.length !== 1 ? 's' : ''}` 
-                    : currentChatData?.chat?.product?.title || 'Loading...'
+                    : (selectedChatId && currentChatData?.chat ? currentChatData.chat.product?.title || 'Product Chat' : 'Message conversation')
                   }
                 </p>
               </div>
             </div>
             
             <div className="flex items-center space-x-4">
-              {!showChatList && currentChatData?.chat && (
-                <div className="flex items-center space-x-3 text-white">
-                  <div className="text-right">
-                    <p className="text-sm font-medium">
-                      {currentChatData.chat.seller._id === user?._id ? 'Buyer' : 'Seller'}
-                    </p>
-                    <p className="text-xs text-blue-100">
-                      {currentChatData.chat.seller._id === user?._id 
-                        ? currentChatData.chat.winner?.fullName || 'Unknown'
-                        : currentChatData.chat.seller?.fullName || 'Unknown'
-                      }
-                    </p>
-                  </div>
-                  <div className="h-9 w-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-bold text-sm">
-                    {getInitials(currentChatData.chat.seller._id === user?._id 
-                      ? currentChatData.chat.winner?.fullName || 'U'
-                      : currentChatData.chat.seller?.fullName || 'U'
-                    )}
-                  </div>
+              {/* Typing Indicator */}
+              {!showChatList && typingUsers.size > 0 && (
+                <div className="text-sm text-white bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm">
+                  typing...
                 </div>
               )}
               
@@ -613,6 +695,7 @@ const Chat = () => {
                   handleTyping={handleTyping}
                   messagesEndRef={messagesEndRef}
                   messagesContainerRef={messagesContainerRef}
+                  messageInputRef={messageInputRef}
                   showScrollToBottom={showScrollToBottom}
                   scrollToBottom={scrollToBottom}
                   handleScroll={handleScroll}
@@ -744,6 +827,7 @@ const ChatView = ({
   handleTyping,
   messagesEndRef,
   messagesContainerRef,
+  messageInputRef,
   showScrollToBottom,
   scrollToBottom,
   handleScroll
@@ -758,15 +842,25 @@ const ChatView = ({
     chat,
     messages,
     messagesLength: messages.length,
-    otherUser
+    otherUser,
+    currentUserId: currentUser?._id,
+    sellerId: chat?.seller?._id,
+    winnerId: chat?.winner?._id,
+    isSeller: currentUser?._id === chat?.seller?._id,
+    isWinner: currentUser?._id === chat?.winner?._id
   });
 
   // Scroll to bottom when messages change
   React.useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (messagesContainerRef.current) {
+      // Use setTimeout to ensure scroll happens after DOM update
+      setTimeout(() => {
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+        }
+      }, 100);
     }
-  }, [messages.length, messagesEndRef]);
+  }, [messages.length, messagesContainerRef]);
 
   if (isLoadingCurrentChat) {
     return (
@@ -787,52 +881,13 @@ const ChatView = ({
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full">
-      {/* Chat Header */}
-      <div className="p-4 border-b border-gray-200 bg-white flex-shrink-0">
-        <div className="flex items-center space-x-3">
-          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
-            {otherUser?.profilePicture ? (
-              <img 
-                src={otherUser.profilePicture} 
-                alt={otherUser.fullName} 
-                className="h-10 w-10 rounded-full object-cover" 
-              />
-            ) : (
-              getInitials(otherUser?.fullName)
-            )}
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center">
-              <ShoppingBag className="h-3 w-3 text-blue-500 mr-1" />
-              <p className="text-sm text-blue-600 font-medium">
-                {chat?.product?.title}
-              </p>
-            </div>
-          </div>
-          {typingUsers.size > 0 && (
-            <div className="text-sm text-gray-500 italic">
-              typing...
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* User Name Section */}
-      <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex-shrink-0">
-        <h3 className="font-medium text-gray-900 text-center">
-          {otherUser?.fullName || 'Unknown User'}
-        </h3>
-      </div>
-
+    <div className="flex-1 flex flex-col h-full relative">
       {/* Messages Area */}
       <div 
         ref={messagesContainerRef}
         className="flex-1 overflow-y-scroll p-4 bg-gray-50 messages-scrollbar relative" 
         style={{ 
-          scrollBehavior: 'smooth',
-          minHeight: '400px', // Ensure minimum height for scrollbar to appear
-          maxHeight: 'calc(100vh - 300px)' // Ensure it doesn't grow too large
+          scrollBehavior: 'smooth'
         }}
         onScroll={handleScroll}
       >
@@ -857,9 +912,9 @@ const ChatView = ({
                     {/* Sender name */}
                     {showSenderName && (
                       <div className="flex items-center space-x-2 mb-1 px-2">
-                        <div className="h-5 w-5 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
+                        {/* <div className="h-5 w-5 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
                           {getInitials(msg.sender.fullName)}
-                        </div>
+                        </div> */}
                         <span className="text-xs font-medium text-gray-600">
                           {msg.sender.fullName || 'Unknown User'}
                         </span>
@@ -893,7 +948,7 @@ const ChatView = ({
                         <p className={`text-xs mt-1 ${
                           isMe ? 'text-blue-200' : 'text-gray-500'
                         }`}>
-                          {msg.timestamp ? formatDistanceToNow(new Date(msg.timestamp), { addSuffix: true }) : 'Just now'}
+                          {formatMessageTime(msg.timestamp)}
                         </p>
                       </div>
                     </div>
@@ -923,6 +978,7 @@ const ChatView = ({
       <div className="p-4 border-t border-gray-200 bg-white flex-shrink-0">
         <form onSubmit={handleSendMessage} className="flex items-center space-x-2">
           <input
+            ref={messageInputRef}
             type="text"
             value={message}
             onChange={(e) => {

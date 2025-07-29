@@ -1,6 +1,7 @@
 import Chat from "../models/chat.model.js";
 import Product from "../models/product.model.js";
 import Bid from "../models/bid.model.js";
+import { createNotification } from "../utils/notifications.js";
 
 // Socket.IO instance
 let io;
@@ -233,7 +234,7 @@ export const sendAuctionWinnerMessage = async (req, res) => {
 
       // Also emit individual notifications to seller and winner
       const recipientId = userId.toString() === sellerId ? winnerId : sellerId;
-      io.emit("chatNotification", {
+      io.to(`user-${recipientId}`).emit("chatNotification", {
         userId: recipientId, // Send to other participant
         senderId: userId, // Add sender ID for filtering
         productId: productId,
@@ -243,20 +244,14 @@ export const sendAuctionWinnerMessage = async (req, res) => {
       });
 
       // Create database notification for new message
-      await createNewMessageNotification(
-        recipientId,
-        populatedMessage.sender.fullName,
-        productId,
-        chat.product?.title || "Auction Chat"
-      );
-
-      // Emit real-time notification for new message
-      io.emit("notification", {
+      console.log('📧 Creating notification for new message to user:', recipientId);
+      await createNotification({
         userId: recipientId,
-        type: "NEW_MESSAGE",
-        title: "New Message",
+        type: 'NEW_MESSAGE',
+        title: 'New Message',
         message: `${populatedMessage.sender.fullName} sent you a message about "${chat.product?.title || "Auction Chat"}"`,
-        relatedProduct: productId
+        relatedProduct: productId,
+        relatedUser: userId
       });
     }
 

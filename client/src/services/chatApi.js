@@ -3,7 +3,7 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 export const chatApi = createApi({
   reducerPath: "chatApi",
   baseQuery: fetchBaseQuery({
-    baseUrl: import.meta.env.VITE_API_URL,
+    baseUrl: `${import.meta.env.VITE_BACKEND_URL}/api/chats`,
     credentials: "include", // Important: This sends cookies with requests
     prepareHeaders: (headers, { getState }) => {
       // Also set Authorization header as fallback (in case cookies don't work)
@@ -19,7 +19,7 @@ export const chatApi = createApi({
     // Get auction winner chat for a specific product
     getAuctionWinnerChat: builder.query({
       query: (productId) => ({
-        url: `/chat/auction/${productId}`,
+        url: `/auction/${productId}`,
         method: "GET",
       }),
       providesTags: (result, error, productId) => [
@@ -30,7 +30,7 @@ export const chatApi = createApi({
     // ✅ FIXED: Send message in auction winner chat - changed field name to 'text'
     sendAuctionWinnerMessage: builder.mutation({
       query: ({ productId, text }) => ({
-        url: `/chat/auction/${productId}/message`,
+        url: `/auction/${productId}/message`,
         method: "POST",
         body: { text }, // ✅ Changed from 'senderId, text' to just 'text' (senderId comes from auth middleware)
       }),
@@ -43,7 +43,7 @@ export const chatApi = createApi({
     // ✅ FIXED: Get user's auction chats - this should now work without errors
     getUserAuctionChats: builder.query({
       query: () => ({
-        url: `/chat/my-auction-chats`,
+        url: `/my-auction-chats`,
         method: "GET",
       }),
       providesTags: ["Chat"],
@@ -57,7 +57,7 @@ export const chatApi = createApi({
     // Get regular user chats
     getUserChats: builder.query({
       query: (userId) => ({
-        url: `/chat/my-chats/${userId}`,
+        url: `/my-chats/${userId}`,
         method: "GET",
       }),
       providesTags: ["Chat"],
@@ -66,7 +66,7 @@ export const chatApi = createApi({
     // Get chat by ID
     getChatById: builder.query({
       query: (chatId) => ({
-        url: `/chat/${chatId}`,
+        url: `/${chatId}`,
         method: "GET",
       }),
       providesTags: (result, error, chatId) => [
@@ -77,28 +77,14 @@ export const chatApi = createApi({
     // Create chat room
     createChatRoom: builder.mutation({
       query: ({ sellerId, winnerId, productId }) => ({
-        url: `/chat`,
+        url: `/`,
         method: "POST",
         body: { sellerId, winnerId, productId },
       }),
       invalidatesTags: ["Chat"],
     }),
 
-    // ✅ NEW: Debug endpoints (remove these in production)
-    debugProducts: builder.query({
-      query: () => ({
-        url: `/chat/debug/products`,
-        method: "GET",
-      }),
-    }),
-
-    debugCloseAuction: builder.mutation({
-      query: ({ productId, winnerId, winningBid }) => ({
-        url: `/chat/debug/close-auction/${productId}`,
-        method: "POST",
-        body: { winnerId, winningBid },
-      }),
-    }),
+   
   }),
 });
 
@@ -109,6 +95,4 @@ export const {
   useGetUserChatsQuery,
   useGetChatByIdQuery,
   useCreateChatRoomMutation,
-  useDebugProductsQuery,
-  useDebugCloseAuctionMutation,
 } = chatApi;

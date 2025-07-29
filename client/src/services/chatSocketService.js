@@ -7,6 +7,7 @@ class ChatSocketService {
     this.currentChatRoom = null;
     this.messageHandlers = new Set();
     this.notificationHandlers = new Set();
+    this.generalNotificationHandlers = new Set(); // For general notifications (not chat)
     this.connectionHandlers = new Set();
     this.errorHandlers = new Set();
   }
@@ -45,7 +46,18 @@ class ChatSocketService {
     // Connection events
     this.socket.on('connect', () => {
       console.log('✅ Chat socket connected:', this.socket.id);
+      
+      // Join user's personal notification room
+      if (this.currentUserId) {
+        console.log(`🔔 Requesting to join user notification room for user: ${this.currentUserId}`);
+        this.socket.emit('joinUserRoom', { userId: this.currentUserId });
+      }
+      
       this.notifyConnectionHandlers({ connected: true, socketId: this.socket.id });
+    });
+
+    this.socket.on('joinedUserRoom', (data) => {
+      console.log('✅ Successfully joined user notification room:', data);
     });
 
     this.socket.on('disconnect', (reason) => {
@@ -62,6 +74,18 @@ class ChatSocketService {
     this.socket.on('chatNotification', (data) => {
       console.log('🔔 Chat notification received:', data);
       this.notifyNotificationHandlers(data);
+    });
+
+    // General notification events (for bid, winner, etc.)
+    this.socket.on('notification', (data) => {
+      console.log('🔔 General notification received:', data);
+      this.notifyGeneralNotificationHandlers(data);
+    });
+
+    // New notification events from server (real-time)
+    this.socket.on('newNotification', (data) => {
+      console.log('🔔 New notification received:', data);
+      this.notifyGeneralNotificationHandlers(data.notification || data);
     });
 
     this.socket.on('joinedRoom', (data) => {
@@ -137,6 +161,11 @@ class ChatSocketService {
     return () => this.notificationHandlers.delete(handler);
   }
 
+  addGeneralNotificationHandler(handler) {
+    this.generalNotificationHandlers.add(handler);
+    return () => this.generalNotificationHandlers.delete(handler);
+  }
+
   addConnectionHandler(handler) {
     this.connectionHandlers.add(handler);
     return () => this.connectionHandlers.delete(handler);
@@ -164,6 +193,16 @@ class ChatSocketService {
         handler(data);
       } catch (error) {
         console.error('❌ Error in notification handler:', error);
+      }
+    });
+  }
+
+  notifyGeneralNotificationHandlers(data) {
+    this.generalNotificationHandlers.forEach(handler => {
+      try {
+        handler(data);
+      } catch (error) {
+        console.error('❌ Error in general notification handler:', error);
       }
     });
   }

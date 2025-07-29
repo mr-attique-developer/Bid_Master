@@ -7,9 +7,11 @@ import userRoutes from "./routes/user.routes.js";
 import productRoutes from "./routes/product.routes.js";
 import bidRoutes from "./routes/bid.routes.js";
 import chatRoutes from "./routes/chat.routes.js";
+import notificationRoutes from "./routes/notification.routes.js";
 import { setSocketIO } from "./controllers/bid.controller.js";
 import { setSocketIO as setProductSocketIO } from "./controllers/product.controller.js";
 import { setSocketIO as setChatSocketIO } from "./controllers/chat.controller.js";
+import { setNotificationSocketIO } from "./utils/notifications.js";
 import { setSocketIOForCron } from "./crons/auctionChecker.js";
 import bodyParser from "body-parser";
 import "./crons/auctionChecker.js";
@@ -24,21 +26,20 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL,
+    origin: process.env.CLIENT_URL || "http://localhost:5173",
     credentials: true,
   },
 });
 
 // Export io for use in controllers
-export { io };
-
 // Set socket instance in controllers
 setSocketIO(io);
 setProductSocketIO(io);
 setChatSocketIO(io);
+setNotificationSocketIO(io);
 setSocketIOForCron(io);
 
-app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
+app.use(cors({ origin: process.env.CLIENT_URL || "http://localhost:5173", credentials: true }));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
@@ -48,8 +49,9 @@ app.use(cookieParser());
 // Routes
 app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/product", productRoutes);
-app.use("/api/v1/bids", bidRoutes);
-app.use("/api/v1/chat", chatRoutes);
+app.use("/api/v1/bid", bidRoutes);
+app.use("/api/chats", chatRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 app.get("/", (req, res) => {
   res.send("API is running...");
@@ -273,6 +275,30 @@ io.on("connection", (socket) => {
     socket.leave(roomId);
     console.log(`👋 User ${userId} left room ${roomId}`);
     socket.emit("leftRoom", { roomId });
+  });
+
+  // ✅ NEW: Handle joining user notification room
+  socket.on("joinUserRoom", ({ userId }) => {
+    try {
+      const userRoom = `user-${userId}`;
+      socket.join(userRoom);
+      console.log(`🔔 User ${userId} joined notification room: ${userRoom}`);
+      console.log(`🔔 Socket ${socket.id} is now in rooms:`, [...socket.rooms]);
+      
+      // Verify the room membership
+      const socketsInRoom = io.sockets.adapter.rooms.get(userRoom);
+      console.log(`🔔 Total sockets in room ${userRoom}:`, socketsInRoom ? socketsInRoom.size : 0);
+      
+      socket.emit("joinedUserRoom", { 
+        userRoom, 
+        message: "Successfully joined notification room",
+        socketId: socket.id,
+        totalSocketsInRoom: socketsInRoom ? socketsInRoom.size : 0
+      });
+    } catch (error) {
+      console.error('❌ Error joining user room:', error);
+      socket.emit("error", { message: "Failed to join notification room", error: error.message });
+    }
   });
 
   socket.on("disconnect", () => {

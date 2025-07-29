@@ -10,10 +10,12 @@ import AuctionDetail from "./pages/AuctionDetail";
 import CreateAuction from "./pages/CreateAuction";
 import Profile from "./pages/Profile";
 import Chat from "./pages/Chat_new";
+import Notifications from "./pages/Notifications";
 import Login from "./components/auth/Login";
 import Register from "./components/auth/Register";
 import NotificationProvider from "./components/ui/NotificationProvider";
 import { ChatNotificationProvider } from "./contexts/ChatNotificationContext";
+import { NotificationProvider as RealtimeNotificationProvider } from "./contexts/NotificationContext";
 import LoadingSpinner from "./components/LoadingSpinner";
 import { setCredentials } from "./features/auth/authSlice";
 import GuestRoute from "./components/GuestRoutes";
@@ -57,10 +59,11 @@ export function App() {
   return (
     <BrowserRouter>
       <NotificationProvider>
-        <ChatNotificationProvider>
-          <div className="flex flex-col min-h-screen bg-gray-50">
-            <Navbar />
-            <main className="flex-grow">
+        <RealtimeNotificationProvider>
+          <ChatNotificationProvider>
+            <div className="flex flex-col min-h-screen bg-gray-50">
+              <Navbar />
+              <main className="flex-grow">
               <Routes>
                 {/* Public routes */}
                 <Route path="/" element={<Home />} />
@@ -92,6 +95,14 @@ export function App() {
                     path="/chat/:productId"
                     element={token ? <Chat /> : <Navigate to="/login" replace />}
                   />
+                  <Route
+                    path="/chat"
+                    element={token ? <Chat /> : <Navigate to="/login" replace />}
+                  />
+                  <Route
+                    path="/notifications"
+                    element={token ? <Notifications /> : <Navigate to="/login" replace />}
+                  />
                  
                 </Route>
               </Routes>
@@ -99,7 +110,8 @@ export function App() {
             <Footer />
           </div>
         </ChatNotificationProvider>
-      </NotificationProvider>
+      </RealtimeNotificationProvider>
+    </NotificationProvider>
     </BrowserRouter>
   );
 }

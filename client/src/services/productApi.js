@@ -3,14 +3,14 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 export const productApi = createApi({
   reducerPath: "productApi",
   baseQuery: fetchBaseQuery({
-    baseUrl: import.meta.env.VITE_API_URL,
+    baseUrl: `${import.meta.env.VITE_API_URL}/product`,
     credentials: "include", // For cookies (if using HTTP-only JWT)
   }),
   tagTypes: ["Product"],
   endpoints: (builder) => ({
     createProduct: builder.mutation({
       query: (formData) => ({
-        url: "/product/createProduct",
+        url: "/createProduct",
         method: "POST",
         body: formData,
       }),
@@ -25,7 +25,7 @@ export const productApi = createApi({
             if (category && category !== 'all') queryParams.append('category', category);
             
             return {
-                url: `/product/getAllProducts${queryParams.toString() ? `?${queryParams}` : ''}`,
+                url: `/getAllProducts${queryParams.toString() ? `?${queryParams}` : ''}`,
                 method: "GET",
             };
         },
@@ -33,14 +33,14 @@ export const productApi = createApi({
     }),
     getSingleProduct:builder.query({
       query: (id) => ({
-        url: `/product/getProduct/${id}`,
+        url: `/getProduct/${id}`,
         method: "GET",
       }),
       providesTags:["Product"]
     }),
     placeBid: builder.mutation({
       query: ({ productId, ...bidData }) => ({
-        url: `/bids/place/${productId}`,
+        url: `${import.meta.env.VITE_API_URL}/bid/place/${productId}`,
         method: "POST",
         body: bidData,
       }),
@@ -48,14 +48,14 @@ export const productApi = createApi({
     }),
     getAllBids: builder.query({
       query: (productId) => ({
-        url: `/bids/product/${productId}`,
+        url: `${import.meta.env.VITE_API_URL}/bid/product/${productId}`,
         method: "GET",
       }),
       providesTags: ["Product"]
     }),
     getUserBids: builder.query({
       query: () => ({
-        url: `/bids/user`,
+        url: `${import.meta.env.VITE_API_URL}/bid/user`,
         method: "GET",
       }),
       providesTags: ["Product"]

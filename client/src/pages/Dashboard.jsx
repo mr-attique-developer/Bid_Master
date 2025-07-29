@@ -427,7 +427,7 @@ const Dashboard = () => {
             {filteredAuctions.map((auction) => (
               <Link
                 to={`/auction/${auction._id}`}
-                key={auction.id}
+                key={auction._id}
                 className="group"
               >
                 <div className="bg-white rounded-lg shadow-md overflow-hidden transition-transform group-hover:-translate-y-1">
@@ -512,7 +512,7 @@ const Dashboard = () => {
             {filteredAuctions.map((auction) => (
               <Link
                 to={`/auction/${auction._id}`}
-                key={auction.id}
+                key={auction._id}
                 className="block group"
               >
                 <div className="bg-white rounded-lg shadow-md overflow-hidden transition-transform group-hover:-translate-y-1">

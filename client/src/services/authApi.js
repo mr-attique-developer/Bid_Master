@@ -3,7 +3,7 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 export const authApi = createApi({
   reducerPath: 'authApi',
   baseQuery: fetchBaseQuery({ 
-    baseUrl: import.meta.env.VITE_API_URL,
+    baseUrl: `${import.meta.env.VITE_API_URL}/user`,
     credentials: 'include' // For cookies (if using HTTP-only JWT)
   }),
   tagTypes: ['User'],
@@ -11,7 +11,7 @@ export const authApi = createApi({
     // Register Step 1 (Public)
     registerUser1: builder.mutation({
       query: (userData) => ({
-        url: '/user/register1',
+        url: '/register1',
         method: 'POST',
         body: userData
       })
@@ -20,7 +20,7 @@ export const authApi = createApi({
     // Register Step 2 (Protected)
     registerUser2: builder.mutation({
       query: (userData) => ({
-        url: '/user/register2',
+        url: '/register2',
         method: 'PUT',
         body: userData
       }),
@@ -30,7 +30,7 @@ export const authApi = createApi({
     // Login (Public)
     loginUser: builder.mutation({
       query: (credentials) => ({
-        url: '/user/login',
+        url: '/login',
         method: 'POST',
         body: credentials
       }),
@@ -39,14 +39,14 @@ export const authApi = createApi({
 
     // Get Profile (Protected)
     getUserProfile: builder.query({
-      query: () => '/user/profile',
+      query: () => '/profile',
       providesTags: ['User']
     }),
 
     // Update Profile (Protected)
     updateUserProfile: builder.mutation({
       query: (profileData) => ({
-        url: '/user/updateProfile',
+        url: '/updateProfile',
         method: 'PUT',
         body: profileData
       }),
@@ -56,7 +56,7 @@ export const authApi = createApi({
     // Update Password (Protected)
     updatePassword: builder.mutation({
       query: (passwords) => ({
-        url: '/user/updatePassword',
+        url: '/updatePassword',
         method: 'PATCH',
         body: passwords
       })
@@ -65,7 +65,7 @@ export const authApi = createApi({
     // Logout (Protected)
     logoutUser: builder.mutation({
       query: () => ({
-        url: '/user/logout',
+        url: '/logout',
         method: 'GET'
       }),
       invalidatesTags: ['User']
@@ -74,7 +74,7 @@ export const authApi = createApi({
     // Delete Account (Protected)
     deleteAccount: builder.mutation({
       query: () => ({
-        url: '/user/deleteAccount',
+        url: '/deleteAccount',
         method: 'DELETE'
       })
     })

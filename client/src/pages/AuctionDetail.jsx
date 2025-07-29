@@ -730,31 +730,55 @@ const AuctionDetail = () => {
       </div>
       {/* Bid Confirmation Modal */}
       {showBidConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6">
-            <h3 className="text-xl font-bold mb-4">Confirm Your Bid</h3>
-            <p className="mb-6">
-              You are about to place a bid of{" "}
-              <span className="font-bold text-blue-600">₨{bidAmount}</span> on "
-              {auction.title}".
-            </p>
-            <p className="mb-6 text-sm text-gray-600">
-              By confirming, you agree to pay this amount if you win the
-              auction. Payment will be arranged directly with the seller.
-            </p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={cancelBid}
-                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmBid}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                Confirm Bid
-              </button>
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4"
+          onClick={isPlacingBid ? null : cancelBid}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-2xl max-w-md w-full mx-auto p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-4">
+                <TagIcon className="h-6 w-6 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Confirm Your Bid</h3>
+              <p className="mb-6 text-gray-700">
+                You are about to place a bid of{" "}
+                <span className="font-bold text-blue-600 text-lg">₨{bidAmount}</span> on "
+                <span className="font-medium">{auction.title}</span>".
+              </p>
+              <p className="mb-6 text-sm text-gray-600 bg-gray-50 p-3 rounded-md">
+                <AlertCircleIcon className="inline h-4 w-4 mr-2 text-yellow-500" />
+                By confirming, you agree to pay this amount if you win the
+                auction. Payment will be arranged directly with the seller.
+              </p>
+              <div className="flex space-x-3">
+                <button
+                  onClick={cancelBid}
+                  disabled={isPlacingBid}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmBid}
+                  disabled={isPlacingBid}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  {isPlacingBid ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Confirming...
+                    </>
+                  ) : (
+                    "Confirm Bid"
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
