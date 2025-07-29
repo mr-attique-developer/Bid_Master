@@ -4,6 +4,7 @@ import Bid from "../models/bid.model.js"
 import User from "../models/user.model.js"
 import sendEmail from "../utils/email.js"
 import Chat from "../models/chat.model.js";
+import { createWinnerAnnouncementNotification } from "../utils/notifications.js";
 
 // Import io - we'll set this up
 let io;
@@ -97,6 +98,20 @@ cron.schedule("* * * * *", async () => {
 
       console.log(`🎯 Auction ended - Product: ${product.title}, Winner: ${winner.fullName}, Bid: ${highestBid.amount}`);
 
+      // Create winner announcement notification
+      try {
+        await createWinnerAnnouncedNotification(winner, product, highestBid.amount);
+      } catch (notificationError) {
+        console.error('Error creating winner notification:', notificationError);
+      }
+
+      // Create winner announcement notification
+      try {
+        await createWinnerAnnouncementNotification(winner, product);
+      } catch (notificationError) {
+        console.error('Error creating winner announcement notification:', notificationError);
+      }
+
       // Send Socket.IO notifications for auction end
       if (io) {
         // Notify winner
@@ -106,6 +121,15 @@ cron.schedule("* * * * *", async () => {
           productId: product._id,
           winningBid: highestBid.amount,
           sellerName: seller.fullName
+        });
+
+        // Emit real-time notification to winner
+        io.emit("notification", {
+          userId: winner._id.toString(),
+          type: "WINNER_ANNOUNCED",
+          title: "🎉 Congratulations! You Won!",
+          message: `You won the auction for "${product.title}" with a bid of $${highestBid.amount}`,
+          relatedProduct: product._id
         });
 
         // Notify seller

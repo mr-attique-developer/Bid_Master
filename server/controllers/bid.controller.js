@@ -1,5 +1,9 @@
 import Bid from "../models/bid.model.js";
 import Product from "../models/product.model.js";
+import { 
+  createNewBidNotification, 
+  createOutbidNotification 
+} from "../utils/notifications.js";
 
 // Import io from index.js (we'll need to set this up)
 let io;
@@ -9,6 +13,8 @@ export const setSocketIO = (socketInstance) => {
 
 export const placeBid = async (req, res) => {
   try {
+    console.log(`🎯 placeBid called for user ${req.user._id} on product ${req.params.productId} with amount ${req.body.amount}`);
+    
     const { amount } = req.body;
     const { productId } = req.params;
     const userId = req.user._id;
@@ -127,10 +133,26 @@ export const placeBid = async (req, res) => {
             newHighestBid: amount,
             outbidBy: populatedBid.bidder.fullName
           });
+
+          // Create outbid notification
+          try {
+            await createOutbidNotification(prevBid.bidder, product, amount);
+            console.log(`✅ Created outbid notification for user: ${prevBid.bidder._id}`);
+          } catch (notificationError) {
+            console.error('Error creating outbid notification:', notificationError);
+          }
         }
       }
     } else {
       console.warn('⚠️ Socket.IO instance not available in bid controller');
+    }
+
+    // Create new bid notification for seller
+    try {
+      await createNewBidNotification(populatedBid, product, product.seller);
+      console.log('✅ Created new bid notification for seller');
+    } catch (notificationError) {
+      console.error('Error creating new bid notification:', notificationError);
     }
 
     return res
@@ -188,15 +210,23 @@ export const getUserBids = async (req, res) => {
 
     // Get all bids placed by the current user
     const bids = await Bid.find({ bidder: userId })
-      .populate("product", "title image startingPrice currentBid status")
+      .populate("product", "title image startingPrice currentBid status winner winningBid endsAt")
       .populate("bidder", "fullName email")
       .sort({ createdAt: -1 });
+
+    // Calculate won auctions
+    const wonAuctions = bids.filter(bid => 
+      bid.product && 
+      bid.product.winner && 
+      bid.product.winner.toString() === userId.toString()
+    );
 
     return res.status(200).json({
       success: true,
       message: "User bids retrieved successfully",
       bids: bids,
       totalBids: bids.length,
+      wonAuctions: wonAuctions.length,
     });
   } catch (error) {
     console.error(error);

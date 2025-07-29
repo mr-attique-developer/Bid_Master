@@ -199,6 +199,15 @@ export const createProduct = async (req, res) => {
         image: image[0]?.url // First image for notification
       });
 
+      // Emit general notification to all users except seller
+      io.emit("notification", {
+        excludeUserId: sellerId.toString(), // Don't notify the seller about their own product
+        type: "NEW_PRODUCT",
+        title: "New Auction Listed",
+        message: `${req.user.fullName} listed a new auction: "${title}"`,
+        relatedProduct: product._id
+      });
+
       console.log(`📢 Emitted productListed globally for: ${title}`);
     }
   } 

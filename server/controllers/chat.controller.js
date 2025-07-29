@@ -224,16 +224,39 @@ export const sendAuctionWinnerMessage = async (req, res) => {
           fullName: populatedMessage.sender.fullName,
           email: populatedMessage.sender.email
         },
+        senderId: userId, // Add sender ID for filtering
+        productTitle: chat.product?.title || "Auction Chat",
+        senderName: populatedMessage.sender.fullName,
+        text: text,
         timestamp: populatedMessage.timestamp
       });
 
       // Also emit individual notifications to seller and winner
+      const recipientId = userId.toString() === sellerId ? winnerId : sellerId;
       io.emit("chatNotification", {
-        userId: userId.toString() === sellerId ? winnerId : sellerId, // Send to other participant
+        userId: recipientId, // Send to other participant
+        senderId: userId, // Add sender ID for filtering
         productId: productId,
         productTitle: chat.product?.title || "Auction Chat",
         senderName: populatedMessage.sender.fullName,
         messagePreview: text.length > 50 ? text.substring(0, 50) + "..." : text
+      });
+
+      // Create database notification for new message
+      await createNewMessageNotification(
+        recipientId,
+        populatedMessage.sender.fullName,
+        productId,
+        chat.product?.title || "Auction Chat"
+      );
+
+      // Emit real-time notification for new message
+      io.emit("notification", {
+        userId: recipientId,
+        type: "NEW_MESSAGE",
+        title: "New Message",
+        message: `${populatedMessage.sender.fullName} sent you a message about "${chat.product?.title || "Auction Chat"}"`,
+        relatedProduct: productId
       });
     }
 
