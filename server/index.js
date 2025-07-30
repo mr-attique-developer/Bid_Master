@@ -58,15 +58,29 @@ app.get("/", (req, res) => {
 });
 
 // ✅ SOCKET.IO CONNECTION
-// In server/index.js
-// ✅ SOCKET.IO CONNECTION - Updated and fixed
 io.on("connection", (socket) => {
-  console.log(`🟢 Socket connected: ${socket.id}`);
+  console.log(`🟢 New client connected: ${socket.id}`);
+  
+  // Handle user joining their personal notification room
+  socket.on("joinUserRoom", ({ userId }) => {
+    try {
+      const userRoom = `user-${userId}`;
+      socket.join(userRoom);
+      console.log(`👤 User ${userId} joined personal room: ${userRoom}`);
+      
+      socket.emit("joinedUserRoom", { 
+        userRoom, 
+        message: "Successfully joined notification room",
+        socketId: socket.id
+      });
+    } catch (error) {
+      console.error("❌ joinUserRoom error:", error);
+      socket.emit("error", { message: "Error joining user room" });
+    }
+  });
 
   socket.on("joinRoom", async ({ roomId, userId }) => {
     try {
-      console.log(`👤 User ${userId} attempting to join room ${roomId}`);
-
       if (roomId.startsWith('auction-chat-')) {
         const productId = roomId.replace('auction-chat-', '');
         
@@ -93,7 +107,6 @@ io.on("connection", (socket) => {
         }
 
         socket.join(roomId);
-        console.log(`✅ User ${userId} joined auction chat room ${roomId}`);
         
         // Send confirmation to user
         socket.emit("joinedRoom", { 
@@ -120,7 +133,6 @@ io.on("connection", (socket) => {
       }
 
       socket.join(roomId);
-      console.log(`✅ User ${userId} joined chat room ${roomId}`);
       socket.emit("joinedRoom", { roomId, message: "Successfully joined chat" });
       
     } catch (err) {
@@ -131,8 +143,6 @@ io.on("connection", (socket) => {
 
   socket.on("sendMessage", async ({ roomId, senderId, text }) => {
     try {
-      console.log(`💬 Message from ${senderId} in room ${roomId}: ${text}`);
-
       if (!text || text.trim() === '') {
         return socket.emit("error", { message: "Message cannot be empty" });
       }
@@ -165,7 +175,6 @@ io.on("connection", (socket) => {
         });
 
         if (!chat) {
-          console.log("🔨 Creating new chat for auction");
           chat = new Chat({
             product: productId,
             seller: product.seller,
@@ -200,8 +209,33 @@ io.on("connection", (socket) => {
           timestamp: message.timestamp
         };
 
-        // Emit to all users in the room
-        io.to(roomId).emit("receiveMessage", populatedMessage);
+        // Emit to all users in the room with complete data
+        const messageData = {
+          _id: populatedMessage._id,
+          sender: populatedMessage.sender,
+          senderId: senderId,
+          senderName: sender.fullName,
+          text: populatedMessage.text,
+          timestamp: populatedMessage.timestamp,
+          productId: productId,
+          productTitle: product.title,
+          message: populatedMessage // Include the full message object for compatibility
+        };
+        
+        console.log('📡 Emitting newChatMessage to room:', roomId, messageData);
+        io.to(roomId).emit("newChatMessage", messageData);
+        
+        // Also emit to individual user notification rooms
+        const recipientId = senderId === product.seller.toString() ? product.winner.toString() : product.seller.toString();
+        console.log('📡 Emitting chatNotification to user:', recipientId);
+        io.to(`user-${recipientId}`).emit("chatNotification", {
+          userId: recipientId,
+          senderId: senderId,
+          senderName: sender.fullName,
+          productId: productId,
+          productTitle: product.title,
+          messagePreview: text.length > 50 ? text.substring(0, 50) + "..." : text
+        });
         
         // Confirm to sender
         socket.emit("messageSent", { 
@@ -210,7 +244,6 @@ io.on("connection", (socket) => {
           roomId 
         });
 
-        console.log(`✅ Message sent in auction chat room ${roomId}`);
         return;
       }
 
@@ -247,14 +280,24 @@ io.on("connection", (socket) => {
         timestamp: message.timestamp
       };
 
-      io.to(roomId).emit("receiveMessage", populatedMessage);
+      // Emit with complete data
+      const messageData = {
+        _id: populatedMessage._id,
+        sender: populatedMessage.sender,
+        senderId: senderId,
+        senderName: sender.fullName,
+        text: populatedMessage.text,
+        timestamp: populatedMessage.timestamp,
+        message: populatedMessage // Include the full message object for compatibility
+      };
+
+      console.log('📡 Emitting newChatMessage to regular chat room:', roomId, messageData);
+      io.to(roomId).emit("newChatMessage", messageData);
       socket.emit("messageSent", { 
         success: true, 
         message: populatedMessage,
         roomId 
       });
-
-      console.log(`✅ Message sent in regular chat room ${roomId}`);
 
     } catch (error) {
       console.error("❌ sendMessage error:", error);
@@ -273,36 +316,12 @@ io.on("connection", (socket) => {
   // ✅ NEW: Handle user leaving room
   socket.on("leaveRoom", ({ roomId, userId }) => {
     socket.leave(roomId);
-    console.log(`👋 User ${userId} left room ${roomId}`);
     socket.emit("leftRoom", { roomId });
   });
 
-  // ✅ NEW: Handle joining user notification room
-  socket.on("joinUserRoom", ({ userId }) => {
-    try {
-      const userRoom = `user-${userId}`;
-      socket.join(userRoom);
-      console.log(`🔔 User ${userId} joined notification room: ${userRoom}`);
-      console.log(`🔔 Socket ${socket.id} is now in rooms:`, [...socket.rooms]);
-      
-      // Verify the room membership
-      const socketsInRoom = io.sockets.adapter.rooms.get(userRoom);
-      console.log(`🔔 Total sockets in room ${userRoom}:`, socketsInRoom ? socketsInRoom.size : 0);
-      
-      socket.emit("joinedUserRoom", { 
-        userRoom, 
-        message: "Successfully joined notification room",
-        socketId: socket.id,
-        totalSocketsInRoom: socketsInRoom ? socketsInRoom.size : 0
-      });
-    } catch (error) {
-      console.error('❌ Error joining user room:', error);
-      socket.emit("error", { message: "Failed to join notification room", error: error.message });
-    }
-  });
-
+  // Handle disconnect
   socket.on("disconnect", () => {
-    console.log(`🔌 Socket disconnected: ${socket.id}`);
+    console.log(`🔴 Client disconnected: ${socket.id}`);
   });
 });
 // DB Connection

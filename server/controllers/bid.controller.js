@@ -136,7 +136,7 @@ export const placeBid = async (req, res) => {
 
           // Create outbid notification
           try {
-            await createOutbidNotification(prevBid.bidder, product, amount);
+            await createOutbidNotification(prevBid.bidder, product, amount, populatedBid.bidder);
             console.log(`✅ Created outbid notification for user: ${prevBid.bidder._id}`);
           } catch (notificationError) {
             console.error('Error creating outbid notification:', notificationError);
