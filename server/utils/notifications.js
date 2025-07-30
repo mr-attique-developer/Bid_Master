@@ -140,22 +140,25 @@ export const createNewBidNotification = async (bid, product, seller) => {
     return existingNotification;
   }
   
+  // Get bidder name from the populated bid object
+  const bidderName = bid.bidder?.fullName || bid.bidder?.name || 'Someone';
+  
   const notification = await createNotification({
     userId: seller._id,
     type: NotificationTypes.NEW_BID,
     title: 'New Bid Received',
-    message: `Someone placed a bid of $${bid.amount} on your "${product.title}"`,
+    message: `${bidderName} placed a bid of $${bid.amount} on your "${product.title}"`,
     relatedProduct: product._id,
     relatedBid: bid._id,
     relatedUser: bid.bidder,
-    data: { bidAmount: bid.amount }
+    data: { bidAmount: bid.amount, bidderName }
   });
   
   console.log(`✅ Created new bid notification with ID: ${notification._id}`);
   return notification;
 };
 
-export const createOutbidNotification = async (previousBidder, product, newBidAmount) => {
+export const createOutbidNotification = async (previousBidder, product, newBidAmount, newBidder = null) => {
   console.log(`📝 Creating outbid notification for user ${previousBidder._id} about product ${product._id}`);
   
   // Check if a recent outbid notification already exists (within last 5 minutes)
@@ -172,13 +175,20 @@ export const createOutbidNotification = async (previousBidder, product, newBidAm
     return existingNotification;
   }
 
+  // Get the new bidder's name if available
+  const newBidderName = newBidder?.fullName || newBidder?.name || 'Someone';
+  const message = newBidder 
+    ? `${newBidderName} outbid you on "${product.title}" with a bid of $${newBidAmount}`
+    : `Your bid on "${product.title}" has been outbid with $${newBidAmount}`;
+
   const notification = await createNotification({
     userId: previousBidder._id,
     type: NotificationTypes.OUTBID,
     title: 'You\'ve been outbid!',
-    message: `Your bid on "${product.title}" has been outbid with $${newBidAmount}`,
+    message: message,
     relatedProduct: product._id,
-    data: { newBidAmount }
+    relatedUser: newBidder?._id || null,
+    data: { newBidAmount, newBidderName }
   });
   
   console.log(`✅ Created outbid notification with ID: ${notification._id}`);
