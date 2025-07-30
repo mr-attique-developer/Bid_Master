@@ -46,7 +46,11 @@ export function App() {
       }
     }
   }, [token, dispatch]);
-  const { isLoading } = useGetUserProfileQuery();
+  
+  // Only call the query if we have a token
+  const { isLoading } = useGetUserProfileQuery(undefined, {
+    skip: !token // Skip the query if no token
+  });
 
   if (isLoading) {
     return (
@@ -57,7 +61,12 @@ export function App() {
   }
 
   return (
-    <BrowserRouter>
+    <BrowserRouter
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true
+      }}
+    >
       <NotificationProvider>
         <RealtimeNotificationProvider>
           <ChatNotificationProvider>

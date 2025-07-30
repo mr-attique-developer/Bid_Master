@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { BellIcon, CheckIcon, TrashIcon } from 'lucide-react';
 import { useGetNotificationsQuery, useMarkNotificationAsReadMutation, useDeleteNotificationMutation, notificationApi } from '../services/notificationApi';
 import { useDispatch } from 'react-redux';
@@ -14,6 +14,7 @@ const Notifications = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const notificationsPerPage = 20;
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   const { 
     data: notificationsData, 
@@ -99,8 +100,8 @@ const Notifications = () => {
   };
 
   const handleNotificationClick = async (notification) => {
-    console.log('Notification clicked:', notification); // Debug log
-    console.log('Related Product:', notification.relatedProduct); // Debug log
+    console.log('🔔 Notifications page - notification clicked:', notification);
+    console.log('🔍 Related Product:', notification.relatedProduct);
     
     // Mark as read if unread
     if (!notification.isRead) {
@@ -109,17 +110,19 @@ const Notifications = () => {
     
     // Extract product ID from relatedProduct object
     const productId = notification.relatedProduct?._id || notification.relatedProduct;
-    console.log('Extracted Product ID:', productId); // Debug log
+    console.log('🎯 Extracted Product ID:', productId);
     
     // Navigate based on notification type
     if (notification.type === 'NEW_MESSAGE' && productId) {
       // Navigate to chat for this product
-      console.log('Navigating to chat:', `/chat/${productId}`); // Debug log
-      window.location.href = `/chat/${productId}`;
+      console.log('📨 Navigating to chat:', `/chat/${productId}`);
+      navigate(`/chat/${productId}`);
     } else if (productId) {
-      // Navigate to auction detail
-      console.log('Navigating to auction:', `/auction/${productId}`); // Debug log
-      window.location.href = `/auction/${productId}`;
+      // Navigate to auction detail - using correct route parameter (:id)
+      console.log('🏛️ Navigating to auction:', `/auction/${productId}`);
+      navigate(`/auction/${productId}`);
+    } else {
+      console.error('❌ No product ID found in notification:', notification);
     }
   };
 

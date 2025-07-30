@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { formatDistanceToNow, format, isToday, isYesterday } from 'date-fns';
 import { 
   Search, 
@@ -18,7 +18,8 @@ import {
 import {
   useGetUserAuctionChatsQuery,
   useGetAuctionWinnerChatQuery,
-  useSendAuctionWinnerMessageMutation
+  useSendAuctionWinnerMessageMutation,
+  chatApi
 } from '../services/chatApi';
 import { useSocket } from '../hooks/useSocket';
 
@@ -57,6 +58,7 @@ const formatMessageTime = (timestamp) => {
 const Chat = () => {
   const { productId } = useParams();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [activeChat, setActiveChat] = useState(null);
   const [message, setMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -72,6 +74,12 @@ const Chat = () => {
   // Notification state
   const [newMessageNotification, setNewMessageNotification] = useState(null);
   
+  // Force update state for real-time updates
+  const [forceUpdate, setForceUpdate] = useState(0);
+  
+  // Local messages state for immediate updates
+  const [localMessages, setLocalMessages] = useState([]);
+  
   // Scroll state
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   
@@ -81,12 +89,14 @@ const Chat = () => {
   const typingTimeoutRef = useRef(null);
   const refetchTimeoutRef = useRef(null);
   const notificationTimeoutRef = useRef(null);
+  const shouldAcceptApiUpdatesRef = useRef(true); // Track when to accept API updates
 
   // Get current user from Redux store
   const { user } = useSelector((state) => state.auth);
 
-  // Socket hook
-  const { socket, isConnected, joinRoom, leaveRoom, sendMessage: sendSocketMessage, emitTyping } = useSocket();
+  // Socket hook with error handling
+  const socketResult = useSocket();
+  const { socket, isConnected, joinRoom, leaveRoom, sendMessage: sendSocketMessage, emitTyping } = socketResult || {};
 
   // API hooks
   const { 
@@ -110,161 +120,50 @@ const Chat = () => {
 
   const [sendMessageMutation, { isLoading: isSendingMessage }] = useSendAuctionWinnerMessageMutation();
 
-  // Socket event handlers
+  // Update local messages when API data changes
   useEffect(() => {
-    if (!socket) {
-      console.log('❌ No socket connection available');
-      return;
+    console.log('📥 API Data Effect Triggered');
+    console.log('📥 currentChatData:', currentChatData);
+    
+    let apiMessages = null;
+    
+    // Check different possible locations for messages
+    if (currentChatData?.chat?.messages) {
+      apiMessages = currentChatData.chat.messages;
+      console.log('📥 Found messages in currentChatData.chat.messages:', apiMessages.length);
+    } else if (currentChatData?.messages) {
+      apiMessages = currentChatData.messages;
+      console.log('📥 Found messages in currentChatData.messages:', apiMessages.length);
     }
     
-    if (!user) {
-      console.log('❌ No user available for socket events');
-      return;
+    if (apiMessages) {
+      console.log('📥 Current localMessages:', localMessages?.length || 0, 'messages');
+      console.log('📥 shouldAcceptApiUpdatesRef:', shouldAcceptApiUpdatesRef.current);
+      
+      // Always accept API updates if localMessages is empty (initial load) or if explicitly allowed
+      if (shouldAcceptApiUpdatesRef.current || !localMessages || localMessages.length === 0) {
+        console.log('📥 ✅ Accepting API data and updating localMessages');
+        setLocalMessages(apiMessages);
+      } else {
+        console.log('📥 ⏸️ Blocking API updates (optimistic update in progress)');
+      }
+    } else {
+      console.log('📥 ❌ No messages found in API response');
     }
+  }, [currentChatData]);
 
-    console.log('🔌 Setting up socket event listeners for user:', user._id);
-    console.log('🔌 Socket connected:', isConnected);
+  // Clear local messages when selected chat changes
+  useEffect(() => {
+    console.log('🔄 Selected chat changed to:', selectedChatId);
+    console.log('🔄 Clearing local messages and enabling API updates');
+    setLocalMessages([]);
+    shouldAcceptApiUpdatesRef.current = true; // Allow API updates for new chat
+  }, [selectedChatId]);
 
-    let refetchTimeout;
-
-    const handleReceiveMessage = (data) => {
-      console.log('💬 Received new message via socket:', data);
-      
-      // Don't show notification if the message is from the current user (sender)
-      const isFromCurrentUser = data.sender?._id === user?._id || data.senderId === user?._id;
-      
-      // Update unread count and show notification only if:
-      // 1. Message is not from current user (not sender)
-      // 2. Message is not from current chat or user is viewing chat list
-      if (!isFromCurrentUser && (data.productId !== selectedChatId || showChatList)) {
-        setUnreadCounts(prev => ({
-          ...prev,
-          [data.productId]: (prev[data.productId] || 0) + 1
-        }));
-        
-        // Show WhatsApp-style notification for new messages
-        showMessageNotification({
-          senderName: data.sender?.fullName || data.senderName || 'Someone',
-          text: data.message?.text || data.text || 'New message',
-          productTitle: data.productTitle || 'New Message',
-          productId: data.productId
-        });
-      }
-      
-      // Always refetch immediately for real-time updates
-      console.log('🔄 Refetching chats for real-time update...');
-      refetchCurrentChat();
-      refetchAuctionChats();
-    };
-
-    const handleChatNotification = (data) => {
-      console.log('🔔 Received chat notification:', data);
-      
-      // Only show notification if it's for current user (they are the receiver) and not the sender
-      if (data.userId === user?._id && data.senderId !== user?._id) {
-        // Update unread count
-        setUnreadCounts(prev => ({
-          ...prev,
-          [data.productId]: (prev[data.productId] || 0) + 1
-        }));
-        
-        // Show notification
-        showMessageNotification({
-          senderName: data.senderName || 'Someone',
-          text: data.messagePreview || 'New message',
-          productTitle: data.productTitle || 'New Message',
-          productId: data.productId
-        });
-        
-        // Trigger notification API refetch for the notification icon
-        setTimeout(() => {
-          refetchAuctionChats();
-        }, 500);
-      }
-    };
-
-    const handleJoinedRoom = (data) => {
-      console.log('✅ Joined room successfully:', data);
-    };
-
-    const handleMessageSent = (data) => {
-      console.log('✅ Message sent successfully:', data);
-      // No refetch needed here
-    };
-
-    const handleUserTyping = ({ userId, isTyping }) => {
-      if (userId !== user?._id) {
-        setTypingUsers(prev => {
-          const newSet = new Set(prev);
-          if (isTyping) {
-            newSet.add(userId);
-          } else {
-            newSet.delete(userId);
-          }
-          return newSet;
-        });
-      }
-    };
-
-    const handleError = (error) => {
-      console.error('❌ Socket error:', error);
-    };
-
-    // Attach event listeners
-    socket.on('newChatMessage', handleReceiveMessage);
-    socket.on('chatNotification', handleChatNotification);
-    socket.on('joinedRoom', handleJoinedRoom);
-    socket.on('messageSent', handleMessageSent);
-    socket.on('userTyping', handleUserTyping);
-    socket.on('error', handleError);
-
-    // Cleanup
-    return () => {
-      if (refetchTimeout) clearTimeout(refetchTimeout);
-      socket.off('newChatMessage', handleReceiveMessage);
-      socket.off('chatNotification', handleChatNotification);
-      socket.off('joinedRoom', handleJoinedRoom);
-      socket.off('messageSent', handleMessageSent);
-      socket.off('userTyping', handleUserTyping);
-      socket.off('error', handleError);
-    };
-  }, [socket, user, refetchCurrentChat, refetchAuctionChats]);
-
-  // Chat navigation functions - Define before useEffect hooks that use them
-  const handleChatSelect = useCallback((chatProductId) => {
-    setSelectedChatId(chatProductId);
-    setActiveChat(chatProductId);
-    setShowChatList(false);
-    
-    // Mark as read
-    setUnreadCounts(prev => ({
-      ...prev,
-      [chatProductId]: 0
-    }));
-    
-    // Store last seen message timestamp
-    setLastSeenMessages(prev => ({
-      ...prev,
-      [chatProductId]: Date.now()
-    }));
-  }, []);
-
-  const handleBackToChatList = useCallback(() => {
-    setShowChatList(true);
-    setSelectedChatId(null);
-    setActiveChat(null);
-    if (selectedChatId) {
-      leaveRoom(`auction-chat-${selectedChatId}`);
-    }
-  }, [selectedChatId, leaveRoom]);
-
-  // WhatsApp-style notification function
+  // WhatsApp-style notification function - Define early to avoid hoisting issues
   const showMessageNotification = useCallback((messageData) => {
-    console.log('🔔 Showing notification for:', messageData);
-    
     // Don't show notification if chat is already open and visible
     if (selectedChatId === messageData.productId && !showChatList) {
-      console.log('🚫 Not showing notification - chat is open');
       return;
     }
 
@@ -311,14 +210,263 @@ const Chat = () => {
       timestamp: Date.now()
     });
 
-    console.log('✅ Notification set successfully');
-
     // Clear notification after 4 seconds
     notificationTimeoutRef.current = setTimeout(() => {
       setNewMessageNotification(null);
-      console.log('🗑️ Notification cleared');
     }, 4000);
   }, [selectedChatId, showChatList]);
+
+  // Socket event handlers
+  useEffect(() => {
+    if (!socket || !user) {
+      console.log('⚠️ Socket or user not available:', { socket: !!socket, user: !!user });
+      return;
+    }
+
+    console.log('🔌 Setting up socket event listeners for user:', user._id);
+
+    const handleReceiveMessage = (data) => {
+      console.log('📨 Received message via socket:', data);
+      
+      // Don't show notification if the message is from the current user (sender)
+      const isFromCurrentUser = data.sender?._id === user?._id || data.senderId === user?._id;
+      console.log('👤 Is from current user:', isFromCurrentUser);
+      console.log('👤 data.sender?._id:', data.sender?._id, 'user._id:', user?._id);
+      console.log('👤 data.senderId:', data.senderId, 'user._id:', user?._id);
+      
+      // Force immediate cache invalidation for real-time updates
+      console.log('🔄 Force refetching chat data...');
+      
+      // Add message to local state immediately for instant UI update
+      if (data.productId === selectedChatId) {
+        console.log('🚀 Adding socket message to local state for immediate display');
+        shouldAcceptApiUpdatesRef.current = false; // Block API updates temporarily
+        setLocalMessages(prevMessages => {
+          // Check if message already exists to avoid duplicates
+          const messageExists = prevMessages.some(msg => 
+            msg._id === data._id || 
+            (msg.text === data.text && msg.createdAt === data.createdAt)
+          );
+          
+          if (!messageExists) {
+            console.log('✅ Socket message added to local state');
+            // Allow API updates after adding socket message
+            setTimeout(() => {
+              shouldAcceptApiUpdatesRef.current = true;
+            }, 500);
+            return [...prevMessages, data];
+          } else {
+            console.log('⚠️ Socket message already exists in local state');
+            shouldAcceptApiUpdatesRef.current = true; // Re-allow since no change
+            return prevMessages;
+          }
+        });
+      }
+      
+      // Manual cache invalidation using dispatch
+      dispatch(chatApi.util.invalidateTags(['Chat']));
+      dispatch(chatApi.util.invalidateTags([{ type: 'Chat', id: `auction-${data.productId}` }]));
+      
+      // Only refetch if we have a selected chat (query is active)
+      if (selectedChatId) {
+        refetchCurrentChat();
+      }
+      refetchAuctionChats();
+      
+      // Force component re-render
+      setForceUpdate(prev => prev + 1);
+      
+      // Update unread count if message is not from current user
+      if (!isFromCurrentUser) {
+        const messageProductId = data.productId || data.message?.productId;
+        console.log('📍 Message product ID:', messageProductId);
+        console.log('📍 Current selected chat ID:', selectedChatId);
+        console.log('📍 Show chat list:', showChatList);
+        
+        // Only increment unread count if user is not currently viewing this chat
+        if (messageProductId !== selectedChatId || showChatList) {
+          console.log('📊 Incrementing unread count for product:', messageProductId);
+          setUnreadCounts(prev => {
+            const newCounts = {
+              ...prev,
+              [messageProductId]: (prev[messageProductId] || 0) + 1
+            };
+            console.log('📊 New unread counts:', newCounts);
+            return newCounts;
+          });
+          
+          // Show WhatsApp-style notification for new messages
+          console.log('🔔 Showing message notification...');
+          try {
+            showMessageNotification({
+              senderName: data.sender?.fullName || data.senderName || 'Someone',
+              text: data.message?.text || data.text || 'New message',
+              productTitle: data.productTitle || 'New Message',
+              productId: messageProductId
+            });
+            console.log('✅ Message notification shown successfully');
+          } catch (error) {
+            console.error('❌ Error showing notification:', error);
+          }
+        } else {
+          console.log('📖 Not incrementing unread count - user is viewing this chat');
+        }
+      } else {
+        console.log('📖 Not processing notification - message is from current user');
+      }
+    };
+    const handleChatNotification = (data) => {
+      console.log('🔔 Received chat notification via socket:', data);
+      
+      // Only show notification if it's for current user (they are the receiver) and not the sender
+      if (data.userId === user?._id && data.senderId !== user?._id) {
+        console.log('🔔 Processing chat notification for current user');
+        console.log('🔔 Current selectedChatId:', selectedChatId);
+        console.log('🔔 showChatList:', showChatList);
+        
+        // Force immediate cache invalidation for real-time updates
+        console.log('🎯 Force updating component state...');
+        setForceUpdate(prev => prev + 1);
+        
+        console.log('🔄 Invalidating and refetching data...');
+        
+        // Manual cache invalidation using dispatch
+        dispatch(chatApi.util.invalidateTags(['Chat']));
+        dispatch(chatApi.util.invalidateTags([{ type: 'Chat', id: `auction-${data.productId}` }]));
+        
+        // Only refetch if we have a selected chat (query is active)
+        if (selectedChatId) {
+          refetchCurrentChat();
+        }
+        refetchAuctionChats();
+        
+        // Update unread count
+        const messageProductId = data.productId;
+        console.log('📍 Message product ID:', messageProductId);
+        console.log('📍 Should increment unread count:', messageProductId !== selectedChatId || showChatList);
+        
+        if (messageProductId !== selectedChatId || showChatList) {
+          console.log('📊 Incrementing unread count for notification:', messageProductId);
+          setUnreadCounts(prev => {
+            const newCounts = {
+              ...prev,
+              [messageProductId]: (prev[messageProductId] || 0) + 1
+            };
+            console.log('📊 New unread counts from notification:', newCounts);
+            return newCounts;
+          });
+        }
+        
+        // Show notification
+        console.log('🔔 Showing notification...');
+        try {
+          showMessageNotification({
+            senderName: data.senderName || 'Someone',
+            text: data.messagePreview || 'New message',
+            productTitle: data.productTitle || 'New Message',
+            productId: data.productId
+          });
+          console.log('✅ Notification shown successfully');
+        } catch (error) {
+          console.error('❌ Error showing notification:', error);
+        }
+      } else {
+        console.log('🚫 Ignoring notification - not for current user or from current user');
+        console.log('🚫 data.userId:', data.userId, 'user._id:', user?._id);
+        console.log('🚫 data.senderId:', data.senderId, 'user._id:', user?._id);
+      }
+    };
+
+    const handleJoinedRoom = (data) => {
+      // Room joined successfully
+    };
+
+    const handleMessageSent = (data) => {
+      // Message sent successfully
+    };
+
+    const handleUserTyping = ({ userId, isTyping }) => {
+      if (userId !== user?._id) {
+        setTypingUsers(prev => {
+          const newSet = new Set(prev);
+          if (isTyping) {
+            newSet.add(userId);
+          } else {
+            newSet.delete(userId);
+          }
+          return newSet;
+        });
+      }
+    };
+
+    const handleError = (error) => {
+      console.error('❌ Socket error:', error);
+    };
+
+    // Log socket connection status
+    console.log('🔌 Socket connected:', socket.connected);
+    console.log('🔌 Socket ID:', socket.id);
+
+    // Attach event listeners
+    socket.on('newChatMessage', handleReceiveMessage);
+    socket.on('chatNotification', handleChatNotification);
+    socket.on('joinedRoom', handleJoinedRoom);
+    socket.on('messageSent', handleMessageSent);
+    socket.on('userTyping', handleUserTyping);
+    socket.on('error', handleError);
+
+    // Join user's personal notification room
+    socket.emit('joinUserRoom', { userId: user._id });
+
+    // Cleanup
+    return () => {
+      console.log('🧹 Cleaning up socket event listeners');
+      socket.off('newChatMessage', handleReceiveMessage);
+      socket.off('chatNotification', handleChatNotification);
+      socket.off('joinedRoom', handleJoinedRoom);
+      socket.off('messageSent', handleMessageSent);
+      socket.off('userTyping', handleUserTyping);
+      socket.off('error', handleError);
+    };
+  }, [socket, user, selectedChatId, showChatList, refetchCurrentChat, refetchAuctionChats, showMessageNotification]);
+
+  // Chat navigation functions - Define before useEffect hooks that use them
+  const handleChatSelect = useCallback((chatProductId) => {
+    console.log('💬 Selecting chat:', chatProductId);
+    
+    setSelectedChatId(chatProductId);
+    setActiveChat(chatProductId);
+    setShowChatList(false);
+    
+    // Mark as read - reset unread count to 0
+    console.log('📖 Marking chat as read:', chatProductId);
+    setUnreadCounts(prev => ({
+      ...prev,
+      [chatProductId]: 0
+    }));
+    
+    // Store last seen message timestamp
+    setLastSeenMessages(prev => ({
+      ...prev,
+      [chatProductId]: Date.now()
+    }));
+    
+    // Force refetch to get latest messages
+    setTimeout(() => {
+      if (chatProductId && selectedChatId === chatProductId) {
+        refetchCurrentChat();
+      }
+    }, 200); // Increase delay to ensure selectedChatId is updated
+  }, [refetchCurrentChat]);
+
+  const handleBackToChatList = useCallback(() => {
+    setShowChatList(true);
+    setSelectedChatId(null);
+    setActiveChat(null);
+    if (selectedChatId) {
+      leaveRoom(`auction-chat-${selectedChatId}`);
+    }
+  }, [selectedChatId, leaveRoom]);
 
   // Scroll functions
   const scrollToBottom = useCallback(() => {
@@ -346,7 +494,6 @@ const Chat = () => {
   // Auto-focus input when chat is selected
   useEffect(() => {
     if (selectedChatId && !showChatList && messageInputRef.current) {
-      console.log('🎯 Auto-focusing message input for chat:', selectedChatId);
       // Small delay to ensure the input is rendered
       const focusTimer = setTimeout(() => {
         messageInputRef.current?.focus();
@@ -359,14 +506,28 @@ const Chat = () => {
   // Join/leave socket rooms
   useEffect(() => {
     if (selectedChatId && isConnected) {
+      console.log('🏠 Joining chat room:', `auction-chat-${selectedChatId}`);
       const roomId = `auction-chat-${selectedChatId}`;
       joinRoom(roomId);
 
       return () => {
+        console.log('🚪 Leaving chat room:', roomId);
         leaveRoom(roomId);
       };
     }
   }, [selectedChatId, isConnected, joinRoom, leaveRoom]);
+
+  // Mark messages as read when viewing a chat
+  useEffect(() => {
+    if (selectedChatId && !showChatList) {
+      console.log('📖 Marking messages as read for chat:', selectedChatId);
+      // Reset unread count when actively viewing a chat
+      setUnreadCounts(prev => ({
+        ...prev,
+        [selectedChatId]: 0
+      }));
+    }
+  }, [selectedChatId, showChatList, currentChatData?.chat?.messages]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -383,34 +544,73 @@ const Chat = () => {
   // Handle sending messages
   const handleSendMessage = useCallback(async (e) => {
     e.preventDefault();
-    console.log('🚀 handleSendMessage called with message:', message);
     
-    if (!message.trim() || !selectedChatId || !user || isSendingMessage) {
-      console.log('❌ Message sending blocked:', { 
-        hasMessage: !!message.trim(), 
-        hasChatId: !!selectedChatId, 
-        hasUser: !!user, 
-        isSending: isSendingMessage 
-      });
+    // Clear input immediately for better UX - do this before any checks
+    const messageText = message.trim();
+    setMessage('');
+    
+    if (!messageText || !selectedChatId || !user || isSendingMessage) {
       return;
     }
 
-    const messageText = message.trim();
-    console.log('📝 Sending message and clearing input...');
+    console.log('📤 Sending message:', messageText);
+
+    // Optimistic update: add message to local state immediately
+    const optimisticMessage = {
+      _id: `temp-${Date.now()}`, // Temporary ID
+      text: messageText,
+      sender: { 
+        _id: user._id, 
+        name: user.name, 
+        fullName: user.fullName || user.name,
+        profilePicture: user.profilePicture 
+      },
+      createdAt: new Date().toISOString(),
+      timestamp: new Date().toISOString(),
+      productId: selectedChatId
+    };
+
+    console.log('🚀 Adding optimistic message to local state');
+    shouldAcceptApiUpdatesRef.current = false; // Block API updates temporarily
+    setLocalMessages(prevMessages => [...prevMessages, optimisticMessage]);
 
     try {
       // Send via API - server will handle socket emission
-      console.log('📤 Sending message via API...');
       const result = await sendMessageMutation({
         productId: selectedChatId,
         text: messageText
       }).unwrap();
-
-      console.log('✅ Message sent via API successfully:', result);
       
-      // Clear input only after successful send
-      console.log('🧹 Clearing input field after successful send...');
-      setMessage('');
+      console.log('✅ Message sent successfully:', result);
+      
+      // Replace optimistic message with real message from server
+      if (result.message) {
+        console.log('🔄 Replacing optimistic message with server response');
+        setLocalMessages(prevMessages => 
+          prevMessages.map(msg => 
+            msg._id === optimisticMessage._id ? result.message : msg
+          )
+        );
+      }
+      
+      // Allow API updates after successful send
+      setTimeout(() => {
+        shouldAcceptApiUpdatesRef.current = true;
+      }, 1000); // Give some time for server to process
+      
+      // Force immediate refetch for real-time display
+      if (selectedChatId) {
+        refetchCurrentChat();
+      }
+      refetchAuctionChats();
+      
+      // Additional refetch after a short delay to ensure consistency
+      setTimeout(() => {
+        if (selectedChatId) {
+          refetchCurrentChat();
+        }
+        refetchAuctionChats();
+      }, 500);
       
       // Focus back to input for better UX
       setTimeout(() => {
@@ -421,9 +621,16 @@ const Chat = () => {
       
     } catch (error) {
       console.error('❌ Error sending message:', error);
-      // Don't clear input on error so user can retry
+      // Remove optimistic message on error
+      setLocalMessages(prevMessages => 
+        prevMessages.filter(msg => msg._id !== optimisticMessage._id)
+      );
+      // Re-allow API updates on error
+      shouldAcceptApiUpdatesRef.current = true;
+      // Restore message on error so user can retry
+      setMessage(messageText);
     }
-  }, [message, selectedChatId, user, isSendingMessage, sendMessageMutation]);
+  }, [message, selectedChatId, user, isSendingMessage, sendMessageMutation, refetchCurrentChat, refetchAuctionChats]);
 
   // Handle typing indicator
   const handleTyping = useCallback(() => {
@@ -465,43 +672,40 @@ const Chat = () => {
           ? chat.messages[chat.messages.length - 1] 
           : null;
 
+        const productId = chat.product._id;
+        const currentUnreadCount = unreadCounts[productId] || 0;
+
         return {
-          id: chat.product._id,
+          id: productId,
           name: otherParticipant?.fullName || 'Unknown User',
           email: otherParticipant?.email,
           productTitle: chat.product?.title || 'Unknown Product',
           winningBid: chat.product?.winningBid,
           lastMessage: lastMessage?.text || 'No messages yet',
           time: lastMessage && lastMessage.timestamp ? formatMessageTime(lastMessage.timestamp) : '',
-          unread: 0, // TODO: Implement read status
+          unread: currentUnreadCount,
           avatar: null,
           online: false, // TODO: Implement online status
           isUserSeller,
           otherParticipant,
           product: chat.product,
-          chatId: chat._id
+          chatId: chat._id,
+          hasNewMessage: currentUnreadCount > 0
         };
       })
       .sort((a, b) => {
-        // Sort by last message time (most recent first)
+        // Sort by unread messages first, then by last message time
+        if (a.hasNewMessage && !b.hasNewMessage) return -1;
+        if (!a.hasNewMessage && b.hasNewMessage) return 1;
+        
+        // Then sort by last message time (most recent first)
         const aTime = a.time ? new Date(a.time) : new Date(0);
         const bTime = b.time ? new Date(b.time) : new Date(0);
         return bTime - aTime;
       });
-  }, [auctionChatsData?.chats, searchTerm, user]);
+  }, [auctionChatsData?.chats, searchTerm, user, unreadCounts]);
 
   const chatList = getChatList();
-
-  // Debug logging
-  console.log('🐛 Chat Component Debug:', {
-    auctionChatsData,
-    chatList,
-    chatListLength: chatList.length,
-    selectedChatId,
-    currentChatData,
-    isLoadingAuctionChats,
-    isLoadingCurrentChat
-  });
 
   // Main render - using the new enhanced UI
   return (
@@ -590,8 +794,22 @@ const Chat = () => {
                 </h1>
                 <p className="text-blue-100 text-sm">
                   {showChatList 
-                    ? `${chatList.length} conversation${chatList.length !== 1 ? 's' : ''}` 
-                    : (selectedChatId && currentChatData?.chat ? currentChatData.chat.product?.title || 'Product Chat' : 'Message conversation')
+                    ? (() => {
+                        try {
+                          const totalUnread = Object.values(unreadCounts || {}).reduce((sum, count) => sum + (count || 0), 0);
+                          return `${chatList.length} conversation${chatList.length !== 1 ? 's' : ''}${totalUnread > 0 ? ` • ${totalUnread} unread` : ''}`;
+                        } catch (error) {
+                          console.error('Error calculating total unread:', error);
+                          return `${chatList.length} conversation${chatList.length !== 1 ? 's' : ''}`;
+                        }
+                      })()
+                    : (selectedChatId && currentChatData?.chat ? (
+                        (() => {
+                          const currentUnread = unreadCounts[selectedChatId] || 0;
+                          const productTitle = currentChatData?.chat?.product?.title || 'Product Chat';
+                          return `${productTitle}${currentUnread > 0 ? ` • ${currentUnread} unread` : ''}`;
+                        })()
+                      ) : 'Message conversation')
                   }
                 </p>
               </div>
@@ -599,11 +817,27 @@ const Chat = () => {
             
             <div className="flex items-center space-x-4">
               {/* Typing Indicator */}
-              {!showChatList && typingUsers.size > 0 && (
+              {!showChatList && typingUsers && typingUsers.size > 0 && (
                 <div className="text-sm text-white bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm">
                   typing...
                 </div>
               )}
+              
+              {/* Unread Messages Indicator */}
+              {(() => {
+                try {
+                  const totalUnread = Object.values(unreadCounts || {}).reduce((sum, count) => sum + (count || 0), 0);
+                  return totalUnread > 0 && (
+                    <div className="flex items-center space-x-2 text-sm text-white bg-red-500/80 px-3 py-1 rounded-full backdrop-blur-sm animate-pulse">
+                      <Bell className="h-4 w-4" />
+                      <span>{totalUnread} unread</span>
+                    </div>
+                  );
+                } catch (error) {
+                  console.error('Error calculating unread count:', error);
+                  return null;
+                }
+              })()}
               
               <div className="flex items-center space-x-2 text-sm text-white bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm">
                 <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'}`}></div>
@@ -699,6 +933,7 @@ const Chat = () => {
                   showScrollToBottom={showScrollToBottom}
                   scrollToBottom={scrollToBottom}
                   handleScroll={handleScroll}
+                  localMessages={localMessages}
                 />
               ) : (
                 <div className="flex-1 flex items-center justify-center bg-gray-50">
@@ -830,25 +1065,35 @@ const ChatView = ({
   messageInputRef,
   showScrollToBottom,
   scrollToBottom,
-  handleScroll
+  handleScroll,
+  localMessages
 }) => {
   const chat = currentChatData?.chat;
-  const messages = chat?.messages || []; // Get messages from chat object
+  // Robust message selection: try multiple sources
+  let messages = [];
+  
+  if (localMessages && localMessages.length > 0) {
+    messages = localMessages;
+    console.log('🎬 Using localMessages:', messages.length, 'messages');
+  } else if (chat?.messages && chat.messages.length > 0) {
+    messages = chat.messages;
+    console.log('🎬 Using chat.messages:', messages.length, 'messages');
+  } else if (currentChatData?.messages && currentChatData.messages.length > 0) {
+    messages = currentChatData.messages;
+    console.log('🎬 Using currentChatData.messages:', messages.length, 'messages');
+  } else {
+    messages = [];
+    console.log('🎬 No messages found anywhere');
+  }
+  
+  console.log('🎬 Final messages to display:', messages.length);
+  console.log('🎬 Chat data structure - localMessages:', localMessages?.length || 0);
+  console.log('🎬 Chat data structure - chatMessages:', chat?.messages?.length || 0);
+  console.log('🎬 Chat data structure - currentChatDataMessages:', currentChatData?.messages?.length || 0);
+  console.log('🎬 Chat data structure - hasChat:', !!chat);
+  console.log('🎬 Chat data structure - hasCurrentChatData:', !!currentChatData);
+  
   const otherUser = currentUser?._id === chat?.seller?._id ? chat?.winner : chat?.seller;
-
-  // Debug logging
-  console.log('🐛 ChatView Debug:', {
-    currentChatData,
-    chat,
-    messages,
-    messagesLength: messages.length,
-    otherUser,
-    currentUserId: currentUser?._id,
-    sellerId: chat?.seller?._id,
-    winnerId: chat?.winner?._id,
-    isSeller: currentUser?._id === chat?.seller?._id,
-    isWinner: currentUser?._id === chat?.winner?._id
-  });
 
   // Scroll to bottom when messages change
   React.useEffect(() => {
@@ -880,17 +1125,18 @@ const ChatView = ({
     );
   }
 
-  return (
-    <div className="flex-1 flex flex-col h-full relative">
-      {/* Messages Area */}
-      <div 
-        ref={messagesContainerRef}
-        className="flex-1 overflow-y-scroll p-4 bg-gray-50 messages-scrollbar relative" 
-        style={{ 
-          scrollBehavior: 'smooth'
-        }}
-        onScroll={handleScroll}
-      >
+  try {
+    return (
+      <div className="flex-1 flex flex-col h-full relative">
+        {/* Messages Area */}
+        <div 
+          ref={messagesContainerRef}
+          className="flex-1 overflow-y-scroll p-4 bg-gray-50 messages-scrollbar relative" 
+          style={{ 
+            scrollBehavior: 'smooth'
+          }}
+          onScroll={handleScroll}
+        >
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-500">
             <MessageSquare className="h-12 w-12 text-gray-300 mb-4" />
@@ -902,12 +1148,18 @@ const ChatView = ({
         ) : (
           <div className="space-y-4">
             {messages.map((msg, index) => {
+              // Ensure msg has required properties and handle potential undefined values
+              if (!msg || !msg.sender) {
+                console.warn('🚨 Invalid message object:', msg);
+                return null;
+              }
+              
               const isMe = msg.sender._id === currentUser?._id;
-              const showAvatar = index === 0 || messages[index - 1]?.sender._id !== msg.sender._id;
+              const showAvatar = index === 0 || messages[index - 1]?.sender?._id !== msg.sender._id;
               const showSenderName = !isMe && showAvatar;
               
               return (
-                <div key={msg._id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                <div key={msg._id || `msg-${index}`} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                   <div className={`flex flex-col max-w-xs md:max-w-md ${isMe ? 'items-end' : 'items-start'}`}>
                     {/* Sender name */}
                     {showSenderName && (
@@ -916,7 +1168,7 @@ const ChatView = ({
                           {getInitials(msg.sender.fullName)}
                         </div> */}
                         <span className="text-xs font-medium text-gray-600">
-                          {msg.sender.fullName || 'Unknown User'}
+                          {msg.sender?.fullName || msg.sender?.name || 'Unknown User'}
                         </span>
                       </div>
                     )}
@@ -925,14 +1177,14 @@ const ChatView = ({
                     <div className={`flex items-end space-x-2 ${isMe ? 'flex-row-reverse space-x-reverse' : ''}`}>
                       {!isMe && showAvatar && (
                         <div className="h-7 w-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                          {msg.sender.profilePicture ? (
+                          {msg.sender?.profilePicture ? (
                             <img 
                               src={msg.sender.profilePicture} 
-                              alt={msg.sender.fullName} 
+                              alt={msg.sender?.fullName || msg.sender?.name || 'User'} 
                               className="h-7 w-7 rounded-full object-cover" 
                             />
                           ) : (
-                            getInitials(msg.sender.fullName)
+                            getInitials(msg.sender?.fullName || msg.sender?.name || 'Unknown User')
                           )}
                         </div>
                       )}
@@ -944,11 +1196,11 @@ const ChatView = ({
                           ? 'bg-blue-600 text-white' 
                           : 'bg-white text-gray-800 border border-gray-200'
                       }`}>
-                        <p className="text-sm">{msg.text}</p>
+                        <p className="text-sm">{msg.text || ''}</p>
                         <p className={`text-xs mt-1 ${
                           isMe ? 'text-blue-200' : 'text-gray-500'
                         }`}>
-                          {formatMessageTime(msg.timestamp)}
+                          {formatMessageTime(msg.timestamp || msg.createdAt)}
                         </p>
                       </div>
                     </div>
@@ -1004,6 +1256,15 @@ const ChatView = ({
       </div>
     </div>
   );
+  } catch (error) {
+    console.error('🚨 ChatView render error:', error);
+    return (
+      <div className="flex-1 flex items-center justify-center text-red-600">
+        <AlertCircle className="h-6 w-6 mr-2" />
+        <span>Error rendering chat</span>
+      </div>
+    );
+  }
 };
 
 export default Chat;

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { BellIcon, MessageSquareIcon, UserIcon, MenuIcon, XIcon } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useLogoutUserMutation } from '../../services/authApi';
@@ -13,6 +13,7 @@ const Navbar = () => {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const notificationRef = useRef(null);
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { token, user } = useSelector((state) => state.auth);
   const [logoutUser] = useLogoutUserMutation();
   const { totalUnreadCount } = useChatNotification();
@@ -30,12 +31,9 @@ const Navbar = () => {
   // Setup real-time notifications
   useEffect(() => {
     if (!token || !user?._id) {
-      console.log('⚠️ No token or user ID available for socket connection');
       chatSocketService.disconnect(); // Disconnect if no user
       return;
     }
-
-    console.log('🔌 Setting up real-time notifications for user:', user._id);
     
     // Connect to socket for real-time notifications
     chatSocketService.connect(user._id);
@@ -43,15 +41,12 @@ const Navbar = () => {
     // Wait a bit for connection to establish, then join user room
     const connectionTimer = setTimeout(() => {
       if (chatSocketService.isConnected()) {
-        console.log('🔔 Re-joining user notification room after connection');
         chatSocketService.socket?.emit('joinUserRoom', { userId: user._id });
       }
     }, 1000);
 
     // Listen for new notifications
     const removeNotificationHandler = chatSocketService.addGeneralNotificationHandler((notification) => {
-      console.log('🔔 Real-time notification received in Navbar:', notification);
-      
       // Invalidate RTK Query cache to refetch notifications
       dispatch(notificationApi.util.invalidateTags(['Notification']));
       
@@ -67,8 +62,6 @@ const Navbar = () => {
 
     // Also listen for chat notifications to update notification count
     const removeChatNotificationHandler = chatSocketService.socket?.on('chatNotification', (data) => {
-      console.log('🔔 Chat notification received in Navbar:', data);
-      
       // Only process if it's for the current user
       if (data.userId === user._id) {
         // Invalidate notifications to refetch count
@@ -87,13 +80,10 @@ const Navbar = () => {
 
     // Request notification permission if not already granted
     if (Notification.permission === 'default') {
-      Notification.requestPermission().then(permission => {
-        console.log('Notification permission:', permission);
-      });
+      Notification.requestPermission();
     }
 
     return () => {
-      console.log('🧹 Cleaning up notification handler and timer');
       clearTimeout(connectionTimer);
       removeNotificationHandler();
       
@@ -152,34 +142,44 @@ const Navbar = () => {
   const toggleNotifications = () => setNotificationsOpen(!notificationsOpen);
 
   const handleNotificationClick = async (notification) => {
-    console.log('Notification clicked:', notification); // Debug log
-    console.log('Related Product:', notification.relatedProduct); // Debug log
+    console.log('🔔 Navbar notification clicked:', notification);
+    console.log('🔍 Notification type:', notification.type);
+    console.log('🔍 Related Product full object:', notification.relatedProduct);
     
     // Mark as read if unread
     if (!notification.isRead) {
       try {
         await markAsRead(notification._id);
+        console.log('✅ Notification marked as read');
       } catch (error) {
-        console.error('Failed to mark notification as read:', error);
+        console.error('❌ Failed to mark notification as read:', error);
       }
     }
     
     // Extract product ID from relatedProduct object
     const productId = notification.relatedProduct?._id || notification.relatedProduct;
-    console.log('Extracted Product ID:', productId); // Debug log
+    console.log('🎯 Extracted Product ID:', productId);
+    
+    if (!productId) {
+      console.error('❌ No product ID found in notification:', notification);
+      console.error('❌ Cannot navigate without product ID');
+      setNotificationsOpen(false);
+      return;
+    }
     
     // Navigate based on notification type
-    if (notification.type === 'NEW_MESSAGE' && productId) {
+    if (notification.type === 'NEW_MESSAGE') {
       // Navigate to chat for this product
-      console.log('Navigating to chat:', `/chat/${productId}`); // Debug log
-      window.location.href = `/chat/${productId}`;
-    } else if (productId) {
-      // Navigate to auction detail
-      console.log('Navigating to auction:', `/auction/${productId}`); // Debug log
-      window.location.href = `/auction/${productId}`;
+      console.log('📨 Navigating to chat:', `/chat/${productId}`);
+      navigate(`/chat/${productId}`);
+    } else {
+      // Navigate to auction detail for all other types (OUTBID, AUCTION_WON, etc.)
+      console.log('🏛️ Navigating to auction:', `/auction/${productId}`);
+      navigate(`/auction/${productId}`);
     }
     
     setNotificationsOpen(false);
+    console.log('🔒 Notification dropdown closed');
   };
 
   const formatNotificationTime = (createdAt) => {

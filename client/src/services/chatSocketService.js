@@ -25,7 +25,6 @@ class ChatSocketService {
     });
 
     this.setupEventListeners();
-    console.log('🔌 Connecting to chat socket...');
   }
 
   // Disconnect socket
@@ -35,7 +34,6 @@ class ChatSocketService {
       this.socket = null;
       this.currentUserId = null;
       this.currentChatRoom = null;
-      console.log('🔌 Chat socket disconnected');
     }
   }
 
@@ -45,11 +43,8 @@ class ChatSocketService {
 
     // Connection events
     this.socket.on('connect', () => {
-      console.log('✅ Chat socket connected:', this.socket.id);
-      
       // Join user's personal notification room
       if (this.currentUserId) {
-        console.log(`🔔 Requesting to join user notification room for user: ${this.currentUserId}`);
         this.socket.emit('joinUserRoom', { userId: this.currentUserId });
       }
       
@@ -57,39 +52,33 @@ class ChatSocketService {
     });
 
     this.socket.on('joinedUserRoom', (data) => {
-      console.log('✅ Successfully joined user notification room:', data);
+      // Successfully joined user notification room
     });
 
     this.socket.on('disconnect', (reason) => {
-      console.log('❌ Chat socket disconnected:', reason);
       this.notifyConnectionHandlers({ connected: false, reason });
     });
 
     // Chat-specific events
     this.socket.on('newChatMessage', (data) => {
-      console.log('📩 New chat message received:', data);
       this.notifyMessageHandlers(data);
     });
 
     this.socket.on('chatNotification', (data) => {
-      console.log('🔔 Chat notification received:', data);
       this.notifyNotificationHandlers(data);
     });
 
     // General notification events (for bid, winner, etc.)
     this.socket.on('notification', (data) => {
-      console.log('🔔 General notification received:', data);
       this.notifyGeneralNotificationHandlers(data);
     });
 
     // New notification events from server (real-time)
     this.socket.on('newNotification', (data) => {
-      console.log('🔔 New notification received:', data);
       this.notifyGeneralNotificationHandlers(data.notification || data);
     });
 
     this.socket.on('joinedRoom', (data) => {
-      console.log('✅ Successfully joined chat room:', data);
       this.currentChatRoom = data.roomId;
     });
 
