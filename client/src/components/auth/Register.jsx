@@ -112,19 +112,22 @@ const Register = () => {
         role: formData.role,
         phone: formData.phone,
         location: formData.location,
-        businessName:role === "buyer" ? undefined : formData.businessName,
-        businessDescription: role === "buyer" ? undefined :  formData.businessDescription,
+        businessName: formData.role === "buyer" ? undefined : formData.businessName,
+        businessDescription: formData.role === "buyer" ? undefined : formData.businessDescription,
         taxId: formData.taxId
       }).unwrap();
 
-      // Update Redux store with user data
+      // Update Redux store with user data and save to localStorage
       dispatch(setCredentials({ 
         user: userData.user, 
         token: userData.token 
       }));
 
-      // Redirect to dashboard
-      navigate('/dashboard');
+      // Show success message
+      toast.success('Registration successful! Welcome to BidMaster!');
+
+      // Redirect to home page
+      navigate('/');
     } catch (err) {
       setError(err.data?.message || 'Registration failed. Please try again.');
       toast.error(err.data?.message || 'Registration failed. Please try again.');

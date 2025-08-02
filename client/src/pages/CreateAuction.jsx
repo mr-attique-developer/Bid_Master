@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { PlusIcon, XIcon, ImageIcon } from "lucide-react";
+import { PlusIcon, XIcon, ImageIcon, CheckCircle, Mail, CreditCard } from "lucide-react";
 import { useNotification } from "../components/ui/NotificationProvider";
 import { useCreateProductMutation } from "../services/productApi";
 import { toast } from "react-toastify";
@@ -22,6 +22,8 @@ const CreateAuction = () => {
   });
   const [images, setImages] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [createdProductTitle, setCreatedProductTitle] = useState("");
   const categories = [
     "Electronics",
     "Collectibles",
@@ -92,6 +94,9 @@ const CreateAuction = () => {
       const result = await createProduct(form).unwrap();
       console.log("✅ Product creation result:", result);
       
+      // Store the product title for the success modal
+      setCreatedProductTitle(formData.title);
+      
       // Reset form after successful submission
       setFormData({
         title: "",
@@ -107,11 +112,10 @@ const CreateAuction = () => {
       setImages([]);
       setImagePreviews([]);
       
-      toast.success("Auction created successfully!");
-      console.log("✅ Product created successfully");
+      // Show success modal instead of immediate navigation
+      setShowSuccessModal(true);
       
-      // Navigate immediately to dashboard
-      navigate("/dashboard");
+      console.log("✅ Product created successfully");
     } catch (error) {
       console.error("❌ Error creating auction:", error);
       // If error.data is HTML, show a generic message
@@ -420,6 +424,79 @@ const CreateAuction = () => {
           </form>
         </div>
       </div>
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6 relative">
+            {/* Success Icon */}
+            <div className="text-center mb-6">
+              <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <CheckCircle className="w-10 h-10 text-green-500" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                Auction Created Successfully!
+              </h3>
+              <p className="text-gray-600">
+                Your auction "{createdProductTitle}" has been created.
+              </p>
+            </div>
+
+            {/* Next Steps */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <Mail className="w-6 h-6 text-blue-500 mt-1 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-blue-800 mb-1">
+                    Check Your Email
+                  </h4>
+                  <p className="text-blue-700 text-sm">
+                    We've sent you an email with instructions to pay the admin fee and activate your auction.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <CreditCard className="w-6 h-6 text-amber-500 mt-1 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-amber-800 mb-1">
+                    Admin Fee Required
+                  </h4>
+                  <p className="text-amber-700 text-sm">
+                    Complete the admin fee payment to make your auction visible to bidders.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  navigate("/dashboard");
+                }}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors font-medium"
+              >
+                Go to Dashboard
+              </button>
+              <button
+                onClick={() => setShowSuccessModal(false)}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md transition-colors font-medium"
+              >
+                Create Another
+              </button>
+            </div>
+
+            {/* Important Note */}
+            <p className="text-center text-gray-500 text-xs mt-4">
+              💡 Your auction will be pending until the admin fee is paid
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

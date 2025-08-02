@@ -16,6 +16,9 @@ const authSlice = createSlice({
       state.user = action.payload.user;
       state.token = action.payload.token;
       state.isAuthenticated = true;
+      // Save to localStorage
+      localStorage.setItem("token", action.payload.token);
+      localStorage.setItem("user", JSON.stringify(action.payload.user));
     },
     logout: (state) => {
       state.user = null;
@@ -29,6 +32,18 @@ const authSlice = createSlice({
     // Automatically update state on successful login
     builder.addMatcher(
       authApi.endpoints.loginUser.matchFulfilled,
+      (state, { payload }) => {
+        state.user = payload.user;
+        state.token = payload.token;
+        state.isAuthenticated = true;
+        localStorage.setItem("token", payload.token);
+        localStorage.setItem("user", JSON.stringify(payload.user));
+      }
+    );
+
+    // Automatically update state on successful registration (step 2)
+    builder.addMatcher(
+      authApi.endpoints.registerUser2.matchFulfilled,
       (state, { payload }) => {
         state.user = payload.user;
         state.token = payload.token;

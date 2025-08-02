@@ -4,6 +4,7 @@ import authReducer from '../features/auth/authSlice';
 import { productApi } from '../services/productApi';
 import { chatApi } from '../services/chatApi';
 import { notificationApi } from '../services/notificationApi';
+import { adminApi } from '../services/adminApi';
 
 export const store = configureStore({
   reducer: {
@@ -11,7 +12,8 @@ export const store = configureStore({
     auth: authReducer,
     [productApi.reducerPath] : productApi.reducer,
     [chatApi.reducerPath]: chatApi.reducer,
-    [notificationApi.reducerPath]: notificationApi.reducer
+    [notificationApi.reducerPath]: notificationApi.reducer,
+    [adminApi.reducerPath]: adminApi.reducer
     
   },
   middleware: (getDefaultMiddleware) =>
@@ -19,6 +21,7 @@ export const store = configureStore({
       authApi.middleware, 
       productApi.middleware, 
       chatApi.middleware,
-      notificationApi.middleware
+      notificationApi.middleware,
+      adminApi.middleware
     )
 });

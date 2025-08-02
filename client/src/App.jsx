@@ -11,6 +11,7 @@ import CreateAuction from "./pages/CreateAuction";
 import Profile from "./pages/Profile";
 import Chat from "./pages/Chat_new";
 import Notifications from "./pages/Notifications";
+import AdminDashboard from "./pages/AdminDashboard";
 import Login from "./components/auth/Login";
 import Register from "./components/auth/Register";
 import NotificationProvider from "./components/ui/NotificationProvider";
@@ -21,6 +22,8 @@ import { setCredentials } from "./features/auth/authSlice";
 import GuestRoute from "./components/GuestRoutes";
 import ProtectedRoute from "./components/ProtectedRoutes";
 import SellerRoute from "./components/SellerRoute";
+import AdminRoute from "./components/AdminRoute";
+import AdminRedirect from "./components/AdminRedirect";
 
 export function App() {
   const dispatch = useDispatch();
@@ -75,7 +78,7 @@ export function App() {
               <main className="flex-grow">
               <Routes>
                 {/* Public routes */}
-                <Route path="/" element={<Home />} />
+                <Route path="/" element={<AdminRedirect><Home /></AdminRedirect>} />
                 <Route element={<GuestRoute />}>
                   <Route path="/login" element={<Login />} />
                   <Route path="/register" element={<Register />} />
@@ -83,34 +86,44 @@ export function App() {
 
                 {/* Protected routes */}
                 <Route element={<ProtectedRoute />}>
-                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/dashboard" element={<AdminRedirect><Dashboard /></AdminRedirect>} />
                   <Route 
                     path="/create-auction" 
                     element={
-                      <SellerRoute>
-                        <CreateAuction />
-                      </SellerRoute>
+                      <AdminRedirect>
+                        <SellerRoute>
+                          <CreateAuction />
+                        </SellerRoute>
+                      </AdminRedirect>
                     } 
                   />
-                  <Route path="/auction/:id" element={<AuctionDetail />} />
+                  <Route path="/auction/:id" element={<AdminRedirect><AuctionDetail /></AdminRedirect>} />
 
                   <Route
                     path="/profile"
                     element={
-                      token ? <Profile /> : <Navigate to="/login" replace />
+                      token ? <AdminRedirect><Profile /></AdminRedirect> : <Navigate to="/login" replace />
                     }
                   />
                   <Route
                     path="/chat/:productId"
-                    element={token ? <Chat /> : <Navigate to="/login" replace />}
+                    element={token ? <AdminRedirect><Chat /></AdminRedirect> : <Navigate to="/login" replace />}
                   />
                   <Route
                     path="/chat"
-                    element={token ? <Chat /> : <Navigate to="/login" replace />}
+                    element={token ? <AdminRedirect><Chat /></AdminRedirect> : <Navigate to="/login" replace />}
                   />
                   <Route
                     path="/notifications"
-                    element={token ? <Notifications /> : <Navigate to="/login" replace />}
+                    element={token ? <AdminRedirect><Notifications /></AdminRedirect> : <Navigate to="/login" replace />}
+                  />
+                  <Route
+                    path="/admin"
+                    element={
+                      <AdminRoute>
+                        <AdminDashboard />
+                      </AdminRoute>
+                    }
                   />
                  
                 </Route>

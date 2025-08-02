@@ -35,7 +35,12 @@ const Login = () => {
         token: userData.token 
       }));
       
-      navigate('/dashboard');
+      // Redirect admin users to admin dashboard, others to regular dashboard
+      if (userData.user.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(err.data?.message || 'Login failed. Please try again.');
       console.error('Login error:', err);

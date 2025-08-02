@@ -220,99 +220,126 @@ const Navbar = () => {
           <div className="hidden md:flex items-center space-x-4">
             {token ? (
               <>
-                <div className="relative">
-                  <button onClick={toggleNotifications} className="p-2 rounded-full hover:bg-gray-100">
-                    <BellIcon className="w-6 h-6 text-gray-600" />
-                    {unreadNotificationsCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                        {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
-                      </span>
-                    )}
-                  </button>
-                  {notificationsOpen && (
-                    <div 
-                      ref={notificationRef}
-                      className="fixed top-16 right-4 w-80 bg-white rounded-md shadow-2xl z-[9999] border border-gray-200"
-                      style={{ zIndex: 9999 }}
-                    >
-                      <div className="p-3 border-b bg-gray-50">
-                        <h3 className="text-lg font-semibold text-gray-800">Notifications</h3>
+                {user?.role === "admin" ? (
+                  // Special Admin Navbar
+                  <>
+                    <div className="flex items-center space-x-3 bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-2 rounded-lg border border-blue-200">
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <UserIcon className="w-5 h-5 text-blue-600" />
                       </div>
-                      <div className="max-h-80 overflow-y-auto">
-                        {notificationsLoading ? (
-                          <div className="p-4 text-center text-gray-500">
-                            Loading notifications...
-                          </div>
-                        ) : notifications.length === 0 ? (
-                          <div className="p-4 text-center text-gray-500">
-                            No notifications yet
-                          </div>
-                        ) : (
-                          notifications.map(notification => (
-                            <div 
-                              key={notification._id} 
-                              className={`p-3 border-b hover:bg-gray-50 cursor-pointer transition-colors ${
-                                !notification.isRead ? 'bg-blue-50' : ''
-                              }`}
-                              onClick={() => handleNotificationClick(notification)}
-                            >
-                              <div className="flex justify-between items-start">
-                                <div className="flex-1">
-                                  <p className="text-sm font-medium">{notification.title}</p>
-                                  <p className="text-xs text-gray-600 mt-1">{notification.message}</p>
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    {formatNotificationTime(notification.createdAt)}
-                                  </p>
-                                </div>
-                                {!notification.isRead && (
-                                  <div className="w-2 h-2 bg-blue-500 rounded-full ml-2 mt-1 flex-shrink-0"></div>
-                                )}
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                      <div className="p-2 text-center border-t">
-                        <Link 
-                          to="/notifications" 
-                          className="text-sm text-blue-600 hover:underline"
-                          onClick={() => setNotificationsOpen(false)}
-                        >
-                          View All Notifications
-                        </Link>
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {user?.fullName || 'Administrator'}
+                        </div>
+                        <div className="text-xs text-blue-600 font-medium">
+                          🛡️ Admin Access
+                        </div>
                       </div>
                     </div>
-                  )}
-                </div>
+                    
+                    <Link 
+                      to="/admin" 
+                      className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-2 rounded-lg transition-all duration-200 text-sm font-medium shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                    >
+                      🔧 Admin Dashboard
+                    </Link>
 
-                {/* <Link to="/dashboard" className="p-2 rounded-full hover:bg-gray-100 relative" title="My Auctions">
-                  <MessageSquareIcon className="w-6 h-6 text-gray-600" />
-                  {totalUnreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                      {totalUnreadCount > 9 ? '9+' : totalUnreadCount}
-                    </span>
-                  )}
-                </Link> */}
+                    <button 
+                      onClick={handleLogout}
+                      className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+                    >
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  // Regular User Navbar
+                  <>
+                    <div className="relative">
+                      <button onClick={toggleNotifications} className="p-2 rounded-full hover:bg-gray-100">
+                        <BellIcon className="w-6 h-6 text-gray-600" />
+                        {unreadNotificationsCount > 0 && (
+                          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                            {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+                          </span>
+                        )}
+                      </button>
+                      {notificationsOpen && (
+                        <div 
+                          ref={notificationRef}
+                          className="fixed top-16 right-4 w-80 bg-white rounded-md shadow-2xl z-[9999] border border-gray-200"
+                          style={{ zIndex: 9999 }}
+                        >
+                          <div className="p-3 border-b bg-gray-50">
+                            <h3 className="text-lg font-semibold text-gray-800">Notifications</h3>
+                          </div>
+                          <div className="max-h-80 overflow-y-auto">
+                            {notificationsLoading ? (
+                              <div className="p-4 text-center text-gray-500">
+                                Loading notifications...
+                              </div>
+                            ) : notifications.length === 0 ? (
+                              <div className="p-4 text-center text-gray-500">
+                                No notifications yet
+                              </div>
+                            ) : (
+                              notifications.map(notification => (
+                                <div 
+                                  key={notification._id} 
+                                  className={`p-3 border-b hover:bg-gray-50 cursor-pointer transition-colors ${
+                                    !notification.isRead ? 'bg-blue-50' : ''
+                                  }`}
+                                  onClick={() => handleNotificationClick(notification)}
+                                >
+                                  <div className="flex justify-between items-start">
+                                    <div className="flex-1">
+                                      <p className="text-sm font-medium">{notification.title}</p>
+                                      <p className="text-xs text-gray-600 mt-1">{notification.message}</p>
+                                      <p className="text-xs text-gray-500 mt-1">
+                                        {formatNotificationTime(notification.createdAt)}
+                                      </p>
+                                    </div>
+                                    {!notification.isRead && (
+                                      <div className="w-2 h-2 bg-blue-500 rounded-full ml-2 mt-1 flex-shrink-0"></div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                          <div className="p-2 text-center border-t">
+                            <Link 
+                              to="/notifications" 
+                              className="text-sm text-blue-600 hover:underline"
+                              onClick={() => setNotificationsOpen(false)}
+                            >
+                              View All Notifications
+                            </Link>
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
-                <div className="relative group">
-                  <Link to="/profile" className="flex items-center space-x-2 p-2 rounded-full hover:bg-gray-100">
-                    {user?.avatar ? (
-                      <img src={user.avatar} className="w-8 h-8 rounded-full" alt="Profile" />
-                    ) : (
-                      <UserIcon className="w-6 h-6 text-gray-600" />
-                    )}
-                    <span className="hidden md:inline text-sm font-medium">
-                      {user?.fullName || 'Profile'}
-                    </span>
-                  </Link>
-                </div>
+                    <div className="relative group">
+                      <Link to="/profile" className="flex items-center space-x-2 p-2 rounded-full hover:bg-gray-100">
+                        {user?.avatar ? (
+                          <img src={user.avatar} className="w-8 h-8 rounded-full" alt="Profile" />
+                        ) : (
+                          <UserIcon className="w-6 h-6 text-gray-600" />
+                        )}
+                        <span className="hidden md:inline text-sm font-medium capitalize">
+                          {user?.fullName || 'Profile'}
+                        </span>
+                      </Link>
+                    </div>
 
-                <button 
-                  onClick={handleLogout}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors"
-                >
-                  Logout
-                </button>
+                    <button 
+                      onClick={handleLogout}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors"
+                    >
+                      Logout
+                    </button>
+                  </>
+                )}
               </>
             ) : (
               <>
@@ -345,60 +372,98 @@ const Navbar = () => {
         {/* Mobile Menu */}
         {mobileMenuOpen && (
           <nav className="md:hidden mt-3 pb-3 space-y-2">
-            <Link 
-              to="/" 
-              className="block py-2 px-4 text-gray-700 hover:bg-gray-100 rounded-md"
-              onClick={toggleMobileMenu}
-            >
-              Home
-            </Link>
+            {user?.role !== "admin" && (
+              <Link 
+                to="/" 
+                className="block py-2 px-4 text-gray-700 hover:bg-gray-100 rounded-md"
+                onClick={toggleMobileMenu}
+              >
+                Home
+              </Link>
+            )}
             
             {token ? (
               <>
-                {/* Show Dashboard and Create Auction only for sellers */}
-                {(user?.role === "seller" || user?.role === "both") && (
+                {user?.role === "admin" ? (
+                  // Admin Mobile Menu
                   <>
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-3 rounded-lg border border-blue-200 mb-3">
+                      <div className="text-sm font-medium text-gray-900 mb-1">
+                        {user?.fullName || 'Administrator'}
+                      </div>
+                      <div className="text-xs text-blue-600 font-medium">
+                        🛡️ Admin Access
+                      </div>
+                    </div>
+                    
                     <Link 
-                      to="/dashboard" 
+                      to="/admin" 
+                      className="block py-3 px-4 text-blue-600 hover:bg-blue-50 rounded-md font-medium border border-blue-200"
+                      onClick={toggleMobileMenu}
+                    >
+                      🔧 Admin Dashboard
+                    </Link>
+                    
+                    <button 
+                      onClick={() => {
+                        handleLogout();
+                        toggleMobileMenu();
+                      }}
+                      className="block w-full text-left py-2 px-4 text-gray-600 hover:bg-gray-100 rounded-md"
+                    >
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  // Regular User Mobile Menu
+                  <>
+                    {/* Show Dashboard and Create Auction only for sellers */}
+                    {(user?.role === "seller" || user?.role === "both") && (
+                      <>
+                        <Link 
+                          to="/dashboard" 
+                          className="block py-2 px-4 text-gray-700 hover:bg-gray-100 rounded-md"
+                          onClick={toggleMobileMenu}
+                        >
+                          Dashboard
+                        </Link>
+                        <Link 
+                          to="/create-auction" 
+                          className="block py-2 px-4 text-gray-700 hover:bg-gray-100 rounded-md"
+                          onClick={toggleMobileMenu}
+                        >
+                          Create Auction
+                        </Link>
+                      </>
+                    )}
+                    
+                    {/* Always show these for authenticated users */}
+                    <Link 
+                      to="/profile" 
                       className="block py-2 px-4 text-gray-700 hover:bg-gray-100 rounded-md"
                       onClick={toggleMobileMenu}
                     >
-                      Dashboard
+                      Profile
                     </Link>
                     <Link 
-                      to="/create-auction" 
+                      to="/chat" 
                       className="block py-2 px-4 text-gray-700 hover:bg-gray-100 rounded-md"
                       onClick={toggleMobileMenu}
                     >
-                      Create Auction
+                      Messages
                     </Link>
+                    
+                    <button 
+                      onClick={() => {
+                        handleLogout();
+                        toggleMobileMenu();
+                      }}
+                      className="block w-full text-left py-2 px-4 text-red-600 hover:bg-red-50 rounded-md"
+                    >
+                      Logout
+                    </button>
                   </>
                 )}
-                
-                {/* Always show these for authenticated users */}
-                <Link 
-                  to="/profile" 
-                  className="block py-2 px-4 text-gray-700 hover:bg-gray-100 rounded-md"
-                  onClick={toggleMobileMenu}
-                >
-                  Profile
-                </Link>
-                <Link 
-                  to="/chat" 
-                  className="block py-2 px-4 text-gray-700 hover:bg-gray-100 rounded-md"
-                  onClick={toggleMobileMenu}
-                >
-                  Messages
-                </Link>
-                <button 
-                  onClick={() => {
-                    handleLogout();
-                    toggleMobileMenu();
-                  }}
-                  className="block w-full text-left py-2 px-4 text-red-600 hover:bg-red-50 rounded-md"
-                >
-                  Logout
-                </button>
               </>
             ) : (
               <>

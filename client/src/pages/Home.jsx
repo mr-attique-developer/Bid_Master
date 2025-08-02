@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { SearchIcon, TrendingUpIcon, ShieldCheckIcon, MessageSquareIcon } from 'lucide-react';
+import { SearchIcon, TrendingUpIcon, ShieldCheckIcon, MessageSquareIcon, Package, Heart, Sparkles, Plus, ChevronRight } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { useGetAllProductsQuery } from '../services/productApi';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -58,6 +58,11 @@ const Home = () => {
   const filteredProducts = useMemo(() => {
     let filtered = allProducts;
 
+    // Only show products to authenticated users
+    if (!isAuthenticated) {
+      return []; // Return empty array for unauthenticated users
+    }
+
     if (debouncedSearchTerm.trim()) {
       filtered = filtered.filter(product =>
         product.title.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
@@ -68,10 +73,11 @@ const Home = () => {
       filtered = filtered.filter(product => product.category === categoryFilter);
     }
 
+    // Only show listed products
     filtered = filtered.filter(product => product.status === 'listed');
 
     return filtered;
-  }, [allProducts, debouncedSearchTerm, categoryFilter]);
+  }, [allProducts, debouncedSearchTerm, categoryFilter, isAuthenticated]);
 
   const categories = useMemo(() => {
     const uniqueCategories = [...new Set(allProducts.map(p => p.category))];
@@ -124,61 +130,64 @@ const Home = () => {
           </div>
         </div>
       </section>
-      {/* Search Section */}
-      <section className="py-10 px-4 bg-gray-50">
-        <div className="container mx-auto max-w-4xl">
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-grow relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <SearchIcon className="h-5 w-5 text-gray-400" />
+      {/* Search Section - Only for Authenticated Users */}
+      {isAuthenticated && (
+        <section className="py-10 px-4 bg-gray-50">
+          <div className="container mx-auto max-w-4xl">
+            <div className="bg-white p-6 rounded-lg shadow-md">
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-grow relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <SearchIcon className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search for auctions..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 w-full px-4 py-3 border rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  />
                 </div>
-                <input
-                  type="text"
-                  placeholder="Search for auctions..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-full px-4 py-3 border rounded-md focus:ring-blue-500 focus:border-blue-500"
-                />
+                <button 
+                  onClick={() => setSearchTerm('')}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md font-medium"
+                >
+                  Clear
+                </button>
               </div>
-              <button 
-                onClick={() => setSearchTerm('')}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md font-medium"
-              >
-                Clear
-              </button>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <span className="text-sm text-gray-600">Categories:</span>
-              <div className="flex justify-center gap-2 mb-8 flex-wrap">
-                {categories.map(cat => (
-                  <button
-                    key={cat}
-                    onClick={() => setCategoryFilter(cat)}
-                    className={`text-sm hover:cursor-pointer text-blue-600 hover:underline ${categoryFilter === cat ? 'underline font-semibold' : ''} transition`}
-                  >
-                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                  </button>
-                ))}
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="text-sm text-gray-600">Categories:</span>
+                <div className="flex justify-center gap-2 mb-8 flex-wrap">
+                  {categories.map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setCategoryFilter(cat)}
+                      className={`text-sm hover:cursor-pointer text-blue-600 hover:underline ${categoryFilter === cat ? 'underline font-semibold' : ''} transition`}
+                    >
+                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
-      {/* Featured Auctions */}
-      <section className="py-16 px-4">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-800">
-              {debouncedSearchTerm ? `Search Results for "${debouncedSearchTerm}"` : 'Featured Auctions'}
-            </h2>
-            <p className="text-gray-600 mt-2">
-              {debouncedSearchTerm 
-                ? `Found ${filteredProducts.length} auction${filteredProducts.length !== 1 ? 's' : ''}`
-                : 'Discover our most popular active auctions'
-              }
-            </p>
-          </div>
+        </section>
+      )}
+      {/* Featured Auctions - Only for Authenticated Users */}
+      {isAuthenticated && (
+        <section className="py-16 px-4">
+          <div className="container mx-auto max-w-6xl">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-gray-800">
+                {debouncedSearchTerm ? `Search Results for "${debouncedSearchTerm}"` : 'Featured Auctions'}
+              </h2>
+              <p className="text-gray-600 mt-2">
+                {debouncedSearchTerm 
+                  ? `Found ${filteredProducts.length} auction${filteredProducts.length !== 1 ? 's' : ''}`
+                  : 'Discover our most popular active auctions'
+                }
+              </p>
+            </div>
 
           {/* Loading State */}
           {isLoading && (
@@ -195,27 +204,222 @@ const Home = () => {
             </div>
           )}
 
-          {/* No Results */}
-          {!isLoading && !isError && filteredProducts.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-gray-600 text-lg mb-4">
-                {debouncedSearchTerm || categoryFilter !== 'all' 
-                  ? 'No auctions found matching your criteria' 
-                  : 'No active auctions available'
-                }
-              </p>
-              {(debouncedSearchTerm || categoryFilter !== 'all') && (
-                <button
-                  onClick={() => {
-                    setSearchTerm('');
-                    setCategoryFilter('all');
-                  }}
-                  className="text-blue-600 hover:underline"
-                >
-                  Clear filters
-                </button>
+                    {/* No Results - Beautiful Empty State */}
+          {!isLoading && !isError && (
+            <>
+              {/* For Unauthenticated Users - Always show sign-up message */}
+              {!isAuthenticated && (
+                <div className="text-center py-16">
+                  <div className="max-w-2xl mx-auto">
+                    <div className="mb-8">
+                      <div className="relative">
+                        <div className="mx-auto w-32 h-32 bg-gradient-to-br from-blue-100 via-purple-50 to-pink-100 rounded-full flex items-center justify-center mb-6 shadow-xl">
+                          <Package className="w-16 h-16 text-blue-500" />
+                        </div>
+                        <div className="absolute -top-3 -right-3 w-12 h-12 bg-gradient-to-r from-pink-400 to-purple-500 rounded-full flex items-center justify-center animate-pulse">
+                          <Heart className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="absolute -bottom-2 -left-2 w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center">
+                          <Sparkles className="w-5 h-5 text-yellow-600" />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <h3 className="text-3xl font-bold text-gray-800 mb-4">
+                      🔒 Exclusive Auctions Await!
+                    </h3>
+                    
+                    <p className="text-gray-600 mb-8 text-lg leading-relaxed">
+                      Join our exclusive community to discover amazing auctions and unique items. 
+                      Sign up now to unlock access to all listed products and start bidding!
+                    </p>
+
+                    <div className="grid sm:grid-cols-2 gap-4 mb-8">
+                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-100">
+                        <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                          <Heart className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <h4 className="font-semibold text-gray-800 mb-2">Start Bidding</h4>
+                        <p className="text-gray-600 text-sm mb-4">
+                          Join now to bid on exclusive items and discover amazing deals
+                        </p>
+                        <Link 
+                          to="/register" 
+                          className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors"
+                        >
+                          <span>Sign Up to Bid</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </Link>
+                      </div>
+
+                      <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl border border-purple-100">
+                        <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+                          <Plus className="w-6 h-6 text-purple-600" />
+                        </div>
+                        <h4 className="font-semibold text-gray-800 mb-2">Create Auctions</h4>
+                        <p className="text-gray-600 text-sm mb-4">
+                          List your items and reach thousands of potential buyers
+                        </p>
+                        <Link 
+                          to="/register" 
+                          className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-700 font-medium text-sm transition-colors"
+                        >
+                          <span>Join as Seller</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </Link>
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-r from-green-600 to-blue-600 text-white p-6 rounded-xl">
+                      <h4 className="text-xl font-bold mb-3">🎯 Ready to Get Started?</h4>
+                      <p className="text-green-100 mb-6">
+                        Join thousands of users discovering unique items and amazing deals!
+                      </p>
+                      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                        <Link 
+                          to="/register" 
+                          className="bg-white text-green-600 hover:bg-gray-100 px-6 py-3 rounded-lg font-medium transition-colors shadow-md hover:shadow-lg inline-flex items-center justify-center gap-2"
+                        >
+                          <span>Sign Up Free</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </Link>
+                        <Link 
+                          to="/login" 
+                          className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-green-600 px-6 py-3 rounded-lg font-medium transition-colors inline-flex items-center justify-center gap-2"
+                        >
+                          <span>Login</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </Link>
+                      </div>
+                      <p className="text-green-100 text-sm mt-4">
+                        ✨ Free to join • Instant access • Start bidding immediately
+                      </p>
+                    </div>
+                  </div>
+                </div>
               )}
-            </div>
+
+              {/* For Authenticated Users with Empty Results */}
+              {isAuthenticated && filteredProducts.length === 0 && (
+                <div className="text-center py-16">
+                  {debouncedSearchTerm || categoryFilter !== 'all' ? (
+                    // No search results for authenticated users
+                    <div className="max-w-md mx-auto">
+                      <div className="mb-8">
+                        <div className="relative">
+                          <div className="mx-auto w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mb-6">
+                            <SearchIcon className="w-12 h-12 text-blue-500" />
+                          </div>
+                          <div className="absolute -top-2 -right-2 w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center">
+                            <Sparkles className="w-4 h-4 text-yellow-600" />
+                          </div>
+                        </div>
+                      </div>
+                      <h3 className="text-2xl font-bold text-gray-800 mb-4">
+                        No Auctions Found
+                      </h3>
+                      <p className="text-gray-600 mb-6 leading-relaxed">
+                        We couldn't find any listed auctions matching your search criteria. 
+                        Try adjusting your filters or search terms to discover more items.
+                      </p>
+                      <div className="space-y-3">
+                        <button
+                          onClick={() => {
+                            setSearchTerm('');
+                            setCategoryFilter('all');
+                          }}
+                          className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors shadow-md hover:shadow-lg"
+                        >
+                          <span>Clear All Filters</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    // No listed products in database for authenticated users
+                    <div className="max-w-2xl mx-auto">
+                      <div className="mb-8">
+                        <div className="relative">
+                          <div className="mx-auto w-32 h-32 bg-gradient-to-br from-blue-100 via-purple-50 to-pink-100 rounded-full flex items-center justify-center mb-6 shadow-xl">
+                            <Package className="w-16 h-16 text-blue-500" />
+                          </div>
+                          <div className="absolute -top-3 -right-3 w-12 h-12 bg-gradient-to-r from-pink-400 to-purple-500 rounded-full flex items-center justify-center animate-pulse">
+                            <Heart className="w-6 h-6 text-white" />
+                          </div>
+                          <div className="absolute -bottom-2 -left-2 w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center">
+                            <Sparkles className="w-5 h-5 text-yellow-600" />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <h3 className="text-3xl font-bold text-gray-800 mb-4">
+                        No Listed Auctions Available Yet
+                      </h3>
+                      
+                      <p className="text-gray-600 mb-8 text-lg leading-relaxed">
+                        Our marketplace is ready and waiting! Be among the first to experience 
+                        the excitement of live bidding. Sellers can create their first auctions, 
+                        and amazing deals will appear here soon.
+                      </p>
+
+                      <div className="grid sm:grid-cols-2 gap-4 mb-8">
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-100">
+                          <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                            <Plus className="w-6 h-6 text-blue-600" />
+                          </div>
+                          <h4 className="font-semibold text-gray-800 mb-2">For Sellers</h4>
+                          <p className="text-gray-600 text-sm mb-4">
+                            List your items and reach thousands of potential buyers
+                          </p>
+                          {(user?.role === "seller" || user?.role === "both") ? (
+                            <Link 
+                              to="/create-auction" 
+                              className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors"
+                            >
+                              <span>Create First Auction</span>
+                              <ChevronRight className="w-4 h-4" />
+                            </Link>
+                          ) : (
+                            <Link 
+                              to="/dashboard" 
+                              className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors"
+                            >
+                              <span>Visit Dashboard</span>
+                              <ChevronRight className="w-4 h-4" />
+                            </Link>
+                          )}
+                        </div>
+
+                        <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl border border-purple-100">
+                          <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+                            <Heart className="w-6 h-6 text-purple-600" />
+                          </div>
+                          <h4 className="font-semibold text-gray-800 mb-2">For Buyers</h4>
+                          <p className="text-gray-600 text-sm mb-4">
+                            Get ready to discover unique items and great deals when they're listed
+                          </p>
+                          <Link 
+                            to="/dashboard" 
+                            className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-700 font-medium text-sm transition-colors"
+                          >
+                            <span>Visit Dashboard</span>
+                            <ChevronRight className="w-4 h-4" />
+                          </Link>
+                        </div>
+                      </div>
+
+                      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-xl">
+                        <h4 className="font-semibold mb-2">🚀 Coming Soon</h4>
+                        <p className="text-blue-100 text-sm">
+                          Amazing auctions are on their way! Stay tuned for incredible items, 
+                          competitive bidding, and exciting deals.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
 
           {/* Products Grid */}
@@ -274,6 +478,7 @@ const Home = () => {
           )}
         </div>
       </section>
+      )}
       {/* Features Section */}
       <section className="py-16 px-4 bg-gray-50">
         <div className="container mx-auto max-w-6xl">

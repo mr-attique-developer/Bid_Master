@@ -197,6 +197,43 @@ const Dashboard = () => {
               🔄 Refresh
             </button>
           </div>
+
+        {/* Admin Fee Payment Banner for Sellers with Pending Auctions */}
+        {(user?.role === "seller" || user?.role === "both") && 
+         products.some(auction => 
+           auction.status === "pending" && 
+           auction.seller?._id?.toString() === user?.id?.toString()
+         ) && (
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg p-4 mb-6">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
+                  <span className="text-amber-600 text-lg">📧</span>
+                </div>
+              </div>
+              <div className="flex-grow">
+                <h3 className="font-semibold text-amber-800 mb-1">
+                  Action Required: Admin Fee Payment Pending
+                </h3>
+                <p className="text-amber-700 text-sm mb-3">
+                  You have {products.filter(auction => 
+                    auction.status === "pending" && 
+                    auction.seller?._id?.toString() === user?.id?.toString()
+                  ).length} auction{products.filter(auction => 
+                    auction.status === "pending" && 
+                    auction.seller?._id?.toString() === user?.id?.toString()
+                  ).length !== 1 ? 's' : ''} waiting for admin fee payment. 
+                  Check your email for payment instructions to activate your auctions.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <span className="text-xs text-amber-600 bg-amber-100 px-2 py-1 rounded">
+                    💡 Auctions remain hidden until admin fee is paid
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
           {/* Only show Create Auction button for sellers and both roles */}
           {(user?.role === "seller" || user?.role === "both") && (
             <Link
@@ -551,9 +588,20 @@ const Dashboard = () => {
                           }`}>
                             {auction.status === "listed" ? "Active" : auction.status}
                           </span>
+                          
+                          {/* Admin Fee Warning for Pending Auctions */}
+                          {activeTab === "myauctions" && 
+                           auction.status === "pending" &&
+                           auction.seller?._id?.toString() === user?.id?.toString() && (
+                            <span className="text-xs font-medium bg-red-100 text-red-600 px-2 py-1 rounded">
+                              📧 Check Email - Pay Admin Fee
+                            </span>
+                          )}
+                          
                           {activeTab === "myauctions" &&
                             auction.seller?._id?.toString() ===
-                              user?.id?.toString() && (
+                              user?.id?.toString() && 
+                            auction.status !== "pending" && (
                               <span className="text-xs font-medium bg-green-100 text-green-600 px-2 py-1 rounded">
                                 Your Auction
                               </span>
