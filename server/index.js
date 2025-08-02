@@ -8,6 +8,7 @@ import productRoutes from "./routes/product.routes.js";
 import bidRoutes from "./routes/bid.routes.js";
 import chatRoutes from "./routes/chat.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
+import adminRoutes from "./routes/admin.routes.js";
 import { setSocketIO } from "./controllers/bid.controller.js";
 import { setSocketIO as setProductSocketIO } from "./controllers/product.controller.js";
 import { setSocketIO as setChatSocketIO } from "./controllers/chat.controller.js";
@@ -52,6 +53,7 @@ app.use("/api/v1/product", productRoutes);
 app.use("/api/v1/bid", bidRoutes);
 app.use("/api/chats", chatRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/v1/admin", adminRoutes);
 
 app.get("/", (req, res) => {
   res.send("API is running...");

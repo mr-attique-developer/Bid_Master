@@ -38,7 +38,7 @@ const productSchema = mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "listed", "closed", "sold"],
+      enum: ["pending", "listed", "closed", "sold", "ended", "rejected"],
       default: "pending",
     },
     adminFeePaid: {
