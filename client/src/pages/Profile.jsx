@@ -19,12 +19,13 @@ import { useGetUserBidsQuery } from "../services/productApi";
 import MemberDate from "../utility/MemberDate";
 import { toast } from "react-toastify";
 import Settings from "./Settings";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 const Profile = () => {
   const [activeTab, setActiveTab] = useState("profile");
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const { user: currentUser } = useSelector((state) => state.auth);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -147,17 +148,20 @@ const Profile = () => {
                   <UserIcon className="h-5 w-5 mr-3" />
                   Profile
                 </button>
-                <button
-                  onClick={() => setActiveTab("purchases")}
-                  className={`flex items-center w-full px-4 py-2 rounded-md text-left ${
-                    activeTab === "purchases"
-                      ? "bg-blue-50 text-blue-600"
-                      : "text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  <ShoppingBagIcon className="h-5 w-5 mr-3" />
-                  Purchases & Bids
-                </button>
+                {/* Hide Purchases & Bids for sellers */}
+                {currentUser?.role !== "seller" && (
+                  <button
+                    onClick={() => setActiveTab("purchases")}
+                    className={`flex items-center w-full px-4 py-2 rounded-md text-left ${
+                      activeTab === "purchases"
+                        ? "bg-blue-50 text-blue-600"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    <ShoppingBagIcon className="h-5 w-5 mr-3" />
+                    Purchases & Bids
+                  </button>
+                )}
                
                 <button
                   onClick={() => setActiveTab("settings")}
@@ -273,8 +277,8 @@ const Profile = () => {
               </div>
             )}
 
-            {/* Purchases Tab */}
-            {activeTab === 'purchases' && (
+            {/* Purchases Tab - Hidden for sellers */}
+            {activeTab === 'purchases' && currentUser?.role !== "seller" && (
               <div>
                 <div className="bg-white rounded-lg shadow-md p-6 mb-6">
                   <h2 className="text-xl font-semibold mb-4">

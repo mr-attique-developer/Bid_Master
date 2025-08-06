@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { UserIcon, MailIcon, LockIcon, PhoneIcon, MapPinIcon, LoaderCircle } from 'lucide-react';
-import { useRegisterUser1Mutation, useRegisterUser2Mutation } from '../../services/authApi';
-import { useDispatch } from 'react-redux';
+import { useRegisterUser1Mutation, useRegisterUser2Mutation, useResendVerificationEmailMutation } from '../../services/authApi';
+import { useDispatch, useSelector } from 'react-redux';
 import { setCredentials } from '../../features/auth/authSlice';
 import { toast } from 'react-toastify';
 
@@ -22,12 +22,38 @@ const Register = () => {
 
   const [error, setError] = useState('');
   const [step, setStep] = useState(1);
+  const [emailSent, setEmailSent] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
+  
+  // Get auth state from Redux
+  const { user, token } = useSelector((state) => state.auth);
+
+  // Check if user is coming from email verification
+  useEffect(() => {
+    if (location.pathname === '/register2') {
+      if (user && user.isEmailVerified && token) {
+        // User came from email verification, go to step 2
+        console.log('User verified, going to step 2:', user);
+        setStep(2);
+        setFormData(prev => ({
+          ...prev,
+          fullName: user.fullName || '',
+          email: user.email || ''
+        }));
+      } else {
+        // User accessed /register2 directly without verification
+        console.log('User not verified, redirecting to register');
+        navigate('/register');
+      }
+    }
+  }, [location, user, token, navigate]);
 
   // RTK Query mutations
   const [registerUser1,{isError:register1Error , isLoading:register1Loading, data: register1Data}] = useRegisterUser1Mutation();
   const [registerUser2,{isError:register2Error , isLoading:register2Loading, data: register2Data}] = useRegisterUser2Mutation();
+  const [resendVerification, { isLoading: resendLoading }] = useResendVerificationEmailMutation();
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -76,11 +102,17 @@ const Register = () => {
   };
 
   const handleNextStep = async () => {
+    // If user is already verified (coming from email verification), go directly to step 2
+    if (user && user.isEmailVerified && token) {
+      setStep(2);
+      return;
+    }
+
     if (!validateStep1()) return;
 
     try {
       // Call first registration step API
-      await registerUser1({
+      const result = await registerUser1({
         fullName: formData.fullName,
         email: formData.email,
         password: formData.password,
@@ -88,11 +120,21 @@ const Register = () => {
       }).unwrap();
 
       setError('');
-      setStep(2);
+      setEmailSent(true);
+      toast.success('Registration initiated! Please check your email to verify your account.');
     } catch (err) {
       setError( err?.data?.message || 'Registration failed. Please try again.');
       toast.error(err?.data?.message || 'Registration failed. Please try again.');  
       
+    }
+  };
+
+  const handleResendEmail = async () => {
+    try {
+      await resendVerification({ email: formData.email }).unwrap();
+      toast.success('Verification email sent successfully. Please check your inbox.');
+    } catch (error) {
+      toast.error(error.data?.message || 'Failed to send verification email.');
     }
   };
 
@@ -149,6 +191,34 @@ const Register = () => {
           </div>
         )}
         
+        {emailSent ? (
+          <div className="text-center">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <MailIcon className="w-8 h-8 text-blue-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Check Your Email</h3>
+            <p className="text-gray-600 mb-6">
+              We've sent a verification link to <strong>{formData.email}</strong>. 
+              Please check your email and click the verification link to complete your registration.
+            </p>
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={handleResendEmail}
+                className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-200"
+              >
+                Resend Verification Email
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/login')}
+                className="w-full border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-50 transition duration-200"
+              >
+                Back to Login
+              </button>
+            </div>
+          </div>
+        ) : (
         <form onSubmit={handleSubmit}>
           {step === 1 ? (
             <>
@@ -169,6 +239,7 @@ const Register = () => {
                     className="pl-10 w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500" 
                     placeholder="John Doe" 
                     required 
+                    disabled={user && user.isEmailVerified}
                   />
                 </div>
               </div>
@@ -190,6 +261,7 @@ const Register = () => {
                     className="pl-10 w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500" 
                     placeholder="you@example.com" 
                     required 
+                    disabled={user && user.isEmailVerified}
                   />
                 </div>
               </div>
@@ -268,6 +340,24 @@ const Register = () => {
             </>
           ) : (
             <>
+              {/* Welcome message for verified users */}
+              {user && user.isEmailVerified && (
+                <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-green-800">
+                        <strong>Email verified successfully!</strong> Please complete your profile below.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="mb-6">
                 <label htmlFor="role" className="block mb-2 text-sm font-medium text-gray-700">
                   I want to <span className="text-red-500">*</span>
@@ -425,6 +515,7 @@ const Register = () => {
             </p>
           </div>
         </form>
+        )}
       </div>
     </div>
   );

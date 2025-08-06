@@ -20,9 +20,8 @@ const sendEmail = async(email, subject, text) => {
 
     try {
         await trnasport.sendMail(mailOptions)
-        console.log("Email sent successfully")
     } catch (error) {
-        console.log("Error sending email", error)
+        console.error("Error sending email:", error)
     }
 }
 

@@ -53,6 +53,18 @@ const authSlice = createSlice({
       }
     );
 
+    // Automatically update state on successful email verification
+    builder.addMatcher(
+      authApi.endpoints.verifyEmail.matchFulfilled,
+      (state, { payload }) => {
+        state.user = payload.user;
+        state.token = payload.token;
+        state.isAuthenticated = true;
+        localStorage.setItem("token", payload.token);
+        localStorage.setItem("user", JSON.stringify(payload.user));
+      }
+    );
+
     // Update state when user profile is fetched
     builder.addMatcher(
       authApi.endpoints.getUserProfile.matchFulfilled,

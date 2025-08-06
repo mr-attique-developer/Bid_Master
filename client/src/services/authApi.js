@@ -4,7 +4,18 @@ export const authApi = createApi({
   reducerPath: 'authApi',
   baseQuery: fetchBaseQuery({ 
     baseUrl: `${import.meta.env.VITE_API_URL}/user`,
-    credentials: 'include' // For cookies (if using HTTP-only JWT)
+    credentials: 'include', // For cookies (if using HTTP-only JWT)
+    prepareHeaders: (headers, { getState }) => {
+      // Get token from Redux state
+      const token = getState().auth.token;
+      
+      // If we have a token, set the authorization header
+      if (token) {
+        headers.set('authorization', `Bearer ${token}`);
+      }
+      
+      return headers;
+    },
   }),
   tagTypes: ['User'],
   endpoints: (builder) => ({
@@ -25,6 +36,24 @@ export const authApi = createApi({
         body: userData
       }),
       invalidatesTags: ['User']
+    }),
+
+    // Verify Email (Public)
+    verifyEmail: builder.mutation({
+      query: (token) => ({
+        url: `/verify-email/${token}`,
+        method: 'GET'
+      }),
+      invalidatesTags: ['User']
+    }),
+
+    // Resend Verification Email (Public)
+    resendVerificationEmail: builder.mutation({
+      query: (emailData) => ({
+        url: '/resend-verification',
+        method: 'POST',
+        body: emailData
+      })
     }),
 
     // Login (Public)
@@ -85,6 +114,8 @@ export const authApi = createApi({
 export const {
   useRegisterUser1Mutation,
   useRegisterUser2Mutation,
+  useVerifyEmailMutation,
+  useResendVerificationEmailMutation,
   useLoginUserMutation,
   useGetUserProfileQuery,
   useUpdateUserProfileMutation,

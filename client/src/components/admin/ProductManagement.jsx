@@ -15,11 +15,13 @@ import {
 import { 
   useGetAllProductsQuery, 
   useDeleteProductMutation,
+  useUpdateProductMutation,
   useUpdateProductStatusMutation,
   useUpdateAdminFeeStatusMutation,
   useUpdateProductEndDateMutation
 } from '../../services/adminApi';
 import LoadingSpinner from '../LoadingSpinner';
+import ProductUpdateModal from './ProductUpdateModal';
 
 const ProductManagement = () => {
   const [page, setPage] = useState(1);
@@ -30,6 +32,8 @@ const ProductManagement = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [editType, setEditType] = useState(''); // 'status', 'fee', 'endDate'
   const [editValue, setEditValue] = useState('');
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [productToUpdate, setProductToUpdate] = useState(null);
 
   const { 
     data, 
@@ -41,10 +45,11 @@ const ProductManagement = () => {
     limit: 10, 
     status: statusFilter, 
     search,
-    adminFeePaid: feeFilter
+    adminFeePaid: feeFilter || undefined // Only pass if feeFilter has value
   });
 
   const [deleteProduct, { isLoading: isDeleting }] = useDeleteProductMutation();
+  const [updateProduct, { isLoading: isUpdatingProduct }] = useUpdateProductMutation();
   const [updateStatus, { isLoading: isUpdatingStatus }] = useUpdateProductStatusMutation();
   const [updateFeeStatus, { isLoading: isUpdatingFee }] = useUpdateAdminFeeStatusMutation();
   const [updateEndDate, { isLoading: isUpdatingDate }] = useUpdateProductEndDateMutation();
@@ -90,6 +95,22 @@ const ProductManagement = () => {
     } catch (error) {
       console.error('Failed to update product:', error);
     }
+  };
+
+  const handleFullProductUpdate = async (productId, updateData) => {
+    try {
+      await updateProduct({ productId, ...updateData }).unwrap();
+      setShowUpdateModal(false);
+      setProductToUpdate(null);
+      refetch();
+    } catch (error) {
+      console.error('Failed to update product:', error);
+    }
+  };
+
+  const openFullUpdateModal = (product) => {
+    setProductToUpdate(product);
+    setShowUpdateModal(true);
   };
 
   const openEditModal = (product, type) => {
@@ -342,6 +363,13 @@ const ProductManagement = () => {
                         <Eye className="h-4 w-4" />
                       </button>
                       <button 
+                        onClick={() => openFullUpdateModal(product)}
+                        className="text-green-600 hover:text-green-900 p-1 rounded"
+                        title="Update Product"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button 
                         onClick={() => setDeleteConfirm(product)}
                         className="text-red-600 hover:text-red-900 p-1 rounded"
                       >
@@ -511,6 +539,18 @@ const ProductManagement = () => {
           </div>
         </div>
       )}
+
+      {/* Product Update Modal */}
+      <ProductUpdateModal
+        product={productToUpdate}
+        isOpen={showUpdateModal}
+        onClose={() => {
+          setShowUpdateModal(false);
+          setProductToUpdate(null);
+        }}
+        onUpdate={handleFullProductUpdate}
+        isLoading={isUpdatingProduct}
+      />
     </div>
   );
 };

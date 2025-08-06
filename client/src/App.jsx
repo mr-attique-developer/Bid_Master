@@ -14,6 +14,7 @@ import Notifications from "./pages/Notifications";
 import AdminDashboard from "./pages/AdminDashboard";
 import Login from "./components/auth/Login";
 import Register from "./components/auth/Register";
+import EmailVerification from "./pages/EmailVerification";
 import NotificationProvider from "./components/ui/NotificationProvider";
 import { ChatNotificationProvider } from "./contexts/ChatNotificationContext";
 import { NotificationProvider as RealtimeNotificationProvider } from "./contexts/NotificationContext";
@@ -83,6 +84,12 @@ export function App() {
                   <Route path="/login" element={<Login />} />
                   <Route path="/register" element={<Register />} />
                 </Route>
+                
+                {/* Email verification route - no authentication required */}
+                <Route path="/verify-email/:token" element={<EmailVerification />} />
+                
+                {/* Registration step 2 - requires email verification */}
+                <Route path="/register2" element={<Register />} />
 
                 {/* Protected routes */}
                 <Route element={<ProtectedRoute />}>

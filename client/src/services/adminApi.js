@@ -49,12 +49,20 @@ export const adminApi = createApi({
     getAllProducts: builder.query({
       query: ({ page = 1, limit = 10, status = 'all', search = '', adminFeePaid }) => {
         let url = `/products?page=${page}&limit=${limit}&status=${status}&search=${search}`;
-        if (adminFeePaid !== undefined) {
+        if (adminFeePaid !== undefined && adminFeePaid !== '' && adminFeePaid !== null) {
           url += `&adminFeePaid=${adminFeePaid}`;
         }
         return url;
       },
       providesTags: ['AdminProducts'],
+    }),
+    updateProduct: builder.mutation({
+      query: ({ productId, ...updateData }) => ({
+        url: `/products/${productId}`,
+        method: 'PUT',
+        body: updateData,
+      }),
+      invalidatesTags: ['AdminProducts', 'AdminStats'],
     }),
     updateProductStatus: builder.mutation({
       query: ({ productId, status }) => ({
@@ -96,6 +104,7 @@ export const {
   useDeleteUserMutation,
   useUpdateUserRoleMutation,
   useGetAllProductsQuery,
+  useUpdateProductMutation,
   useUpdateProductStatusMutation,
   useUpdateAdminFeeStatusMutation,
   useUpdateProductEndDateMutation,
