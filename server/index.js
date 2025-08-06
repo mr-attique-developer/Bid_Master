@@ -61,14 +61,11 @@ app.get("/", (req, res) => {
 
 // ✅ SOCKET.IO CONNECTION
 io.on("connection", (socket) => {
-  console.log(`🟢 New client connected: ${socket.id}`);
-  
   // Handle user joining their personal notification room
   socket.on("joinUserRoom", ({ userId }) => {
     try {
       const userRoom = `user-${userId}`;
       socket.join(userRoom);
-      console.log(`👤 User ${userId} joined personal room: ${userRoom}`);
       
       socket.emit("joinedUserRoom", { 
         userRoom, 
@@ -224,12 +221,10 @@ io.on("connection", (socket) => {
           message: populatedMessage // Include the full message object for compatibility
         };
         
-        console.log('📡 Emitting newChatMessage to room:', roomId, messageData);
         io.to(roomId).emit("newChatMessage", messageData);
         
         // Also emit to individual user notification rooms
         const recipientId = senderId === product.seller.toString() ? product.winner.toString() : product.seller.toString();
-        console.log('📡 Emitting chatNotification to user:', recipientId);
         io.to(`user-${recipientId}`).emit("chatNotification", {
           userId: recipientId,
           senderId: senderId,
@@ -293,7 +288,6 @@ io.on("connection", (socket) => {
         message: populatedMessage // Include the full message object for compatibility
       };
 
-      console.log('📡 Emitting newChatMessage to regular chat room:', roomId, messageData);
       io.to(roomId).emit("newChatMessage", messageData);
       socket.emit("messageSent", { 
         success: true, 
@@ -323,7 +317,7 @@ io.on("connection", (socket) => {
 
   // Handle disconnect
   socket.on("disconnect", () => {
-    console.log(`🔴 Client disconnected: ${socket.id}`);
+    // Client disconnected
   });
 });
 // DB Connection

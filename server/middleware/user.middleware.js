@@ -13,9 +13,6 @@ const protect = async(req,res,next) =>{
         token = req.headers.authorization.split(' ')[1]
     }
     
-    console.log("middleware token source:", req.cookies?.token ? "cookie" : req.headers.authorization ? "header" : "none")
-    console.log("middleware token:", token ? "present" : "missing")
-    
     if(!token){
         return res.status(401).json({
             success: false,
@@ -31,12 +28,11 @@ const protect = async(req,res,next) =>{
                 message: "User not authorized to access this route",
             })
         }
- 
-        console.log("middleware user:", user.fullName)
+
         req.user = user
         next()
     } catch (error) {
-        console.log(error.message)
+        console.error('Auth middleware error:', error.message)
         return res.status(401).json({
             success: false,
             message: "Not authorized to access this route",

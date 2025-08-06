@@ -15,35 +15,21 @@ export const getAuctionWinnerChat = async (req, res) => {
     const { productId } = req.params;
     const userId = req.user._id;
 
-    console.log("🔍 Getting auction winner chat for product:", productId);
-    console.log("👤 User ID:", userId);
-
     // Validate MongoDB ObjectId format
     const mongoose = await import('mongoose');
     if (!mongoose.default.Types.ObjectId.isValid(productId)) {
-      console.log("❌ Invalid ObjectId format:", productId);
       return res.status(400).json({ message: "Invalid product ID format" });
     }
-    const prduct1 = await Product.findById(productId)
-    console.log("product1", prduct1)
 
     // Find the product and check if auction has ended
     const product = await Product.findById(productId).populate("seller", "fullName email");
-    console.log("📦 Product found:", product ? "Yes" : "No");
     
     if (!product) {
-      console.log("❌ Product not found in database");
       return res.status(404).json({ message: "Product not found" });
     }
 
-    console.log(product)
-    console.log("📊 Product status:", product.status);
-    console.log("🏆 Product winner:", product.winner);
-    console.log("💰 Product winningBid:", product.winningBid);
-
     // Check if auction is closed and has a winner
     if (product.status !== 'closed' || !product.winner) {
-      console.log("❌ Auction not closed or no winner");
       return res.status(400).json({ 
         message: "Auction must be closed and have a winner for chat access" 
       });
@@ -53,19 +39,12 @@ export const getAuctionWinnerChat = async (req, res) => {
     const winnerId = product.winner.toString();
     const sellerId = product.seller._id.toString();
 
-    console.log("🏆 Winner ID:", winnerId);
-    console.log("👨‍💼 Seller ID:", sellerId);
-    console.log("👤 Current User ID:", userId.toString());
-
     // Check if current user is either seller or winner
     if (userId.toString() !== sellerId && userId.toString() !== winnerId) {
-      console.log("❌ Access denied - user is not seller or winner");
       return res.status(403).json({ 
         message: "Access denied. Only auction winner and seller can access this chat." 
       });
     }
-
-    console.log("✅ User authorized to access chat");
 
     // Find existing chat for this auction
     let chat = await Chat.findOne({
@@ -78,18 +57,7 @@ export const getAuctionWinnerChat = async (req, res) => {
     .populate("messages.sender", "fullName email")
     .populate("product", "title winningBid images");
 
-    console.log("💬 Existing chat found:", chat ? "Yes" : "No");
-    
-    if (chat) {
-      console.log("🔍 Existing chat details:", {
-        seller: chat.seller,
-        winner: chat.winner,
-        hasMessages: chat.messages?.length > 0
-      });
-    }
-
     if (!chat) {
-      console.log("🔨 Creating new chat room");
       // Create new chat room using the correct schema
       chat = await Chat.create({
         product: productId,
@@ -104,21 +72,7 @@ export const getAuctionWinnerChat = async (req, res) => {
         { path: "winner", select: "fullName email" },
         { path: "product", select: "title winningBid images" }
       ]);
-      
-      console.log("✅ New chat room created");
     }
-
-    console.log("📤 Returning chat data:", {
-      chatId: chat._id,
-      seller: chat.seller,
-      winner: chat.winner,
-      productInfo: {
-        title: product.title,
-        winningBid: product.winningBid,
-        winner: product.winner,
-        seller: product.seller,
-      }
-    });
 
     return res.status(200).json({
       message: "Auction winner chat fetched successfully",
@@ -213,7 +167,6 @@ export const sendAuctionWinnerMessage = async (req, res) => {
     // 📡 REAL-TIME: Emit the new message to chat participants
     if (io) {
       const chatRoomId = `auction-chat-${productId}`;
-      console.log(`📢 Emitting new message to chat room: ${chatRoomId}`);
       
       // Emit to chat room participants only
       io.to(chatRoomId).emit("newChatMessage", {
@@ -244,7 +197,6 @@ export const sendAuctionWinnerMessage = async (req, res) => {
       });
 
       // Create database notification for new message
-      console.log('📧 Creating notification for new message to user:', recipientId);
       await createNotification({
         userId: recipientId,
         type: 'NEW_MESSAGE',
@@ -292,8 +244,6 @@ export const getUserAuctionChats = async (req, res) => {
   try {
     const userId = req.user._id;
 
-    console.log("🔍 Getting auction chats for user:", userId);
-
     // ✅ Fixed: Use correct field names from the schema
     const chats = await Chat.find({
       $or: [
@@ -306,8 +256,6 @@ export const getUserAuctionChats = async (req, res) => {
       .populate("product", "title winningBid images status") // ✅ Fixed field name
       .populate("messages.sender", "fullName email")
       .sort({ updatedAt: -1 }); // Sort by most recent
-
-    console.log("💬 Found auction chats:", chats.length);
 
     return res.status(200).json({
       message: "User auction chats fetched successfully",
@@ -359,8 +307,6 @@ export const createChatRoom = async (req, res) => {
         .json({ message: "Seller ID, Winner ID, and Product ID are required" });
     }
 
-    console.log("🔨 Creating chat room for:", { sellerId, winnerId, productId });
-
     // Check if product exists and is closed with a winner
     const product = await Product.findById(productId);
     if (!product) {
@@ -381,7 +327,6 @@ export const createChatRoom = async (req, res) => {
     });
 
     if (!chatRoom) {
-      console.log("✨ Creating new chat room");
       chatRoom = await Chat.create({
         product: productId,
         seller: sellerId,
@@ -389,8 +334,6 @@ export const createChatRoom = async (req, res) => {
         participants: [sellerId, winnerId], // ✅ Set participants correctly
         messages: [],
       });
-    } else {
-      console.log("✅ Chat room already exists");
     }
 
     await chatRoom.populate([
@@ -412,20 +355,8 @@ export const createChatRoom = async (req, res) => {
 // Debug endpoint to check products (temporary)
 export const debugProducts = async (req, res) => {
   try {
-    console.log("🔍 Debug: Checking all products");
     const products = await Product.find({}).select("title status winner winningBid seller").limit(10);
-    console.log("📦 Found products:", products.length);
     
-    products.forEach((product, index) => {
-      console.log(`Product ${index + 1}:`, {
-        id: product._id,
-        title: product.title,
-        status: product.status,
-        hasWinner: !!product.winner,
-        winningBid: product.winningBid
-      });
-    });
-
     return res.status(200).json({
       message: "Debug info",
       totalProducts: products.length,
@@ -447,8 +378,6 @@ export const debugProducts = async (req, res) => {
 export const debugCloseAuction = async (req, res) => {
   try {
     const { productId } = req.params;
-    
-    console.log("🔧 Debug: Manually closing auction for product:", productId);
     
     // Find the product
     const product = await Product.findById(productId).populate("seller");
@@ -504,15 +433,6 @@ export const debugCloseAuction = async (req, res) => {
       });
     }
 
-    console.log("🎯 Debug: Auction closed successfully:", {
-      productId: product._id,
-      title: product.title,
-      winner: highestBid.bidder.fullName,
-      winningBid: highestBid.amount,
-      status: product.status,
-      chatRoomCreated: !!chatRoom
-    });
-
     return res.status(200).json({
       message: "Auction closed successfully",
       product: {
@@ -545,9 +465,6 @@ export const debugAuctionStatus = async (req, res) => {
   try {
     const { productId } = req.params;
     const userId = req.user._id;
-
-    console.log("🔍 Debug: Checking auction status for product:", productId);
-    console.log("👤 Debug: Current user ID:", userId);
 
     // Find the product
     const product = await Product.findById(productId).populate("seller", "fullName email");

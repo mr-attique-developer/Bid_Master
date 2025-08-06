@@ -30,8 +30,6 @@ cron.schedule("* * * * *", async () => {
 
     // Handle expired pending auctions (keep them as pending, don't process)
     for (const product of expiredPendingAuctions) {
-      console.log(`⚠️ Pending auction expired without payment - Product: ${product.title}`);
-      
       // Notify seller that their auction expired while pending
       if (io) {
         io.emit("pendingAuctionExpired", {
@@ -59,8 +57,6 @@ cron.schedule("* * * * *", async () => {
         product.status = "closed";
         await product.save();
         
-        console.log(`⏰ Auction expired with no bids - Product: ${product.title}`);
-        
         // Notify that auction ended with no bids
         if (io) {
           io.emit("auctionExpired", {
@@ -85,7 +81,6 @@ cron.schedule("* * * * *", async () => {
       const highestBid = bids.reduce((max, bid) =>
         bid.amount > max.amount ? bid : max
       );
-      console.log(highestBid)
 
       const winner = highestBid.bidder;
       const seller = product.seller;
@@ -95,8 +90,6 @@ cron.schedule("* * * * *", async () => {
       product.winner = winner._id;
       product.winningBid = highestBid.amount;
       await product.save();
-
-      console.log(`🎯 Auction ended - Product: ${product.title}, Winner: ${winner.fullName}, Bid: ${highestBid.amount}`);
 
       // Create winner announcement notification
       try {
@@ -184,7 +177,6 @@ cron.schedule("* * * * *", async () => {
       });
       
       if (!chatRoom) {
-        console.log(`💬 Creating chat room for auction: ${product.title}`);
         chatRoom = await Chat.create({
           product: product._id,
           seller: seller._id,
@@ -193,12 +185,8 @@ cron.schedule("* * * * *", async () => {
           messages: []
         });
         await chatRoom.save();
-        console.log(`✅ Chat room created between ${seller.fullName} and ${winner.fullName}`);
       }
-      // TODO: Optionally create a chat room between seller and winner
     }
-
-    console.log("✅ Auction check complete");
   } catch (error) {
     console.error("Error during auction check:", error);
   }

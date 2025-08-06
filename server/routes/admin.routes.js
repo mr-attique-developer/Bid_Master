@@ -10,7 +10,8 @@ import {
   updateAdminFeeStatus,
   deleteProduct,
   updateProductEndDate,
-  updateUserRole
+  updateUserRole,
+  updateProduct
 } from '../controllers/admin.controller.js';
 
 const router = express.Router();
@@ -29,6 +30,7 @@ router.delete('/users/:userId', deleteUser);
 
 // Product Management Routes
 router.get('/products', getAllProducts);
+router.put('/products/:productId', updateProduct);
 router.put('/products/:productId/status', updateProductStatus);
 router.put('/products/:productId/admin-fee', updateAdminFeeStatus);
 router.put('/products/:productId/end-date', updateProductEndDate);

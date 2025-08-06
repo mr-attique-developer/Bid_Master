@@ -164,6 +164,8 @@ export const getAllProducts = async (req, res) => {
   try {
     const { page = 1, limit = 10, status, search, adminFeePaid } = req.query;
     
+    console.log('getAllProducts - Query params:', { page, limit, status, search, adminFeePaid });
+    
     let query = {};
     
     // Filter by status if specified
@@ -172,8 +174,9 @@ export const getAllProducts = async (req, res) => {
     }
     
     // Filter by admin fee payment status
-    if (adminFeePaid !== undefined) {
+    if (adminFeePaid !== undefined && adminFeePaid !== '' && adminFeePaid !== null) {
       query.adminFeePaid = adminFeePaid === 'true';
+      console.log('Applied adminFeePaid filter:', query.adminFeePaid);
     }
     
     // Search functionality
@@ -184,6 +187,8 @@ export const getAllProducts = async (req, res) => {
       ];
     }
 
+    console.log('Final query:', JSON.stringify(query));
+
     const products = await Product.find(query)
       .populate('seller', 'fullName email')
       .populate('winner', 'fullName email')
@@ -192,6 +197,8 @@ export const getAllProducts = async (req, res) => {
       .skip((page - 1) * limit);
 
     const total = await Product.countDocuments(query);
+
+    console.log(`Found ${products.length} products out of ${total} total`);
 
     res.status(200).json({
       success: true,
@@ -422,6 +429,97 @@ export const updateUserRole = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to update user role'
+    });
+  }
+};
+
+// Admin Update Product
+export const updateProduct = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const {
+      title,
+      description,
+      category,
+      condition,
+      startingPrice,
+      endsAt,
+      location,
+      status
+    } = req.body;
+
+    // Find the product
+    const product = await Product.findById(productId).populate('seller', 'fullName email');
+    
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    // Prepare update object with only provided fields
+    const updateData = {};
+    
+    if (title) updateData.title = title;
+    if (description) updateData.description = description;
+    if (category) updateData.category = category;
+    if (condition) updateData.condition = condition;
+    if (location) updateData.location = location;
+    if (status) {
+      // Validate status
+      const validStatuses = ['pending', 'listed', 'closed', 'ended'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid status. Must be one of: pending, listed, closed, ended'
+        });
+      }
+      updateData.status = status;
+    }
+    
+    if (startingPrice) {
+      const price = parseFloat(startingPrice);
+      if (isNaN(price) || price <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Starting price must be a positive number'
+        });
+      }
+      updateData.startingPrice = price;
+    }
+    
+    if (endsAt) {
+      const endDate = new Date(endsAt);
+      const now = new Date();
+      
+      if (endDate <= now) {
+        return res.status(400).json({
+          success: false,
+          message: 'End date must be in the future'
+        });
+      }
+      updateData.endsAt = endDate;
+    }
+
+    // Update the product
+    const updatedProduct = await Product.findByIdAndUpdate(
+      productId,
+      updateData,
+      { new: true, runValidators: true }
+    ).populate('seller', 'fullName email');
+
+    res.status(200).json({
+      success: true,
+      message: 'Product updated successfully',
+      product: updatedProduct
+    });
+
+  } catch (error) {
+    console.error('Error updating product:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update product'
     });
   }
 };

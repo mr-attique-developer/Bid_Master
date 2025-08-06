@@ -19,8 +19,6 @@ export const createNotification = async ({
   data = {}
 }) => {
   try {
-    console.log(`📝 Creating notification: ${type} for user ${userId} - ${title}`);
-    
     const notification = await Notification.create({
       user: userId,
       type,
@@ -32,8 +30,6 @@ export const createNotification = async ({
       data
     });
 
-    console.log(`✅ Notification created with ID: ${notification._id}`);
-
     // Populate the notification
     await notification.populate([
       { path: 'relatedProduct', select: 'title images' },
@@ -43,22 +39,12 @@ export const createNotification = async ({
 
     // Emit real-time notification if socket is available
     if (io) {
-      console.log(`📡 Emitting real-time notification to user-${userId}`);
-      console.log(`📡 Notification data:`, { title, message, type });
-      
-      // Get all sockets in the user room to verify
       const userRoom = `user-${userId}`;
-      const socketsInRoom = io.sockets.adapter.rooms.get(userRoom);
-      console.log(`📡 Sockets in room ${userRoom}:`, socketsInRoom ? [...socketsInRoom] : 'No sockets in room');
       
       io.to(userRoom).emit('newNotification', {
         notification,
         unreadCount: await getUnreadCount(userId)
       });
-      
-      console.log(`✅ Real-time notification emitted to room: ${userRoom}`);
-    } else {
-      console.warn('⚠️ Socket.IO instance not available for real-time notifications');
     }
 
     return notification;
@@ -97,8 +83,6 @@ export const createNewProductNotification = async (product) => {
       role: { $in: ['buyer', 'both'] } // Only notify buyers
     }).select('_id');
 
-    console.log(`📝 Creating new product notifications for ${users.length} users`);
-
     // Create notifications for all users
     const notificationPromises = users.map(user => 
       createNotification({
@@ -117,7 +101,6 @@ export const createNewProductNotification = async (product) => {
     );
 
     await Promise.all(notificationPromises);
-    console.log(`✅ Created ${users.length} new product notifications`);
   } catch (error) {
     console.error('Error creating new product notifications:', error);
     throw error;
@@ -125,8 +108,6 @@ export const createNewProductNotification = async (product) => {
 };
 
 export const createNewBidNotification = async (bid, product, seller) => {
-  console.log(`📝 Creating new bid notification for seller ${seller._id} about bid ${bid._id}`);
-  
   // Check if notification already exists for this bid
   const existingNotification = await Notification.findOne({
     user: seller._id,
@@ -136,7 +117,6 @@ export const createNewBidNotification = async (bid, product, seller) => {
   });
 
   if (existingNotification) {
-    console.log(`⚠️ Notification already exists for bid ${bid._id}, skipping creation`);
     return existingNotification;
   }
   
@@ -154,13 +134,10 @@ export const createNewBidNotification = async (bid, product, seller) => {
     data: { bidAmount: bid.amount, bidderName }
   });
   
-  console.log(`✅ Created new bid notification with ID: ${notification._id}`);
   return notification;
 };
 
 export const createOutbidNotification = async (previousBidder, product, newBidAmount, newBidder = null) => {
-  console.log(`📝 Creating outbid notification for user ${previousBidder._id} about product ${product._id}`);
-  
   // Check if a recent outbid notification already exists (within last 5 minutes)
   const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
   const existingNotification = await Notification.findOne({
@@ -171,7 +148,6 @@ export const createOutbidNotification = async (previousBidder, product, newBidAm
   });
 
   if (existingNotification) {
-    console.log(`⚠️ Recent outbid notification already exists for user ${previousBidder._id}, skipping creation`);
     return existingNotification;
   }
 
@@ -191,7 +167,6 @@ export const createOutbidNotification = async (previousBidder, product, newBidAm
     data: { newBidAmount, newBidderName }
   });
   
-  console.log(`✅ Created outbid notification with ID: ${notification._id}`);
   return notification;
 };
 

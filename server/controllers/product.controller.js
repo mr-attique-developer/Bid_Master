@@ -71,9 +71,6 @@ export const setSocketIO = (socketInstance) => {
 
 export const createProduct = async (req, res) => {
   try {
-    // Add debugging to see what's being received
-    console.log("📋 Creating product:", req.body.title);
-    
     const {
       title,
       description,
@@ -145,8 +142,6 @@ export const createProduct = async (req, res) => {
       endsAt,
     });
 
-    console.log("✅ Product created successfully:", product._id);
-
     // Send immediate response to user first
     res.status(201).json({
       success: true,
@@ -178,7 +173,6 @@ export const createProduct = async (req, res) => {
 
         // Process all emails concurrently instead of sequentially
         await Promise.allSettled(emailPromises);
-        console.log(`📧 Sent notification emails to ${users.length} users`);
       } catch (error) {
         console.error("Background email processing error:", error);
       }
@@ -186,8 +180,6 @@ export const createProduct = async (req, res) => {
 
     // Emit real-time notification immediately (this is fast)
     if (io) {
-      console.log(`📢 Emitting productListed event for product: ${product._id}`);
-      
       // Notify all connected users about new product listing
       io.emit("productListed", {
         productId: product._id,
@@ -207,8 +199,6 @@ export const createProduct = async (req, res) => {
         message: `${req.user.fullName} listed a new auction: "${title}"`,
         relatedProduct: product._id
       });
-
-      console.log(`📢 Emitted productListed globally for: ${title}`);
     }
   } 
  catch (error) {
@@ -223,8 +213,6 @@ export const getAllProducts = async (req, res) => {
       "seller",
       "fullName email"
     );
-    
-    console.log(`📊 getAllProducts: Found ${products.length} products`);
     
     // ✅ Add bid count for each product
     const productsWithBidCount = await Promise.all(
@@ -245,8 +233,6 @@ export const getAllProducts = async (req, res) => {
         return productObj;
       })
     );
-    
-    console.log(`✅ Added bid counts for ${productsWithBidCount.length} products`);
     
     res
       .status(200)
@@ -298,7 +284,6 @@ export const deleteProduct = async (req, res) => {
       "seller",
       "fullName email"
     );
-    console.log(product);
     if (!product) {
       return res
         .status(404)
@@ -334,7 +319,6 @@ export const updateProduct = async (req, res) => {
       "seller",
       "fullName email"
     );
-    console.log(product);
     if (!product) {
       return res
         .status(404)
@@ -372,16 +356,6 @@ export const updateProduct = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Please fill all the fields" });
     }
-    console.log(
-      title,
-      description,
-      startingPrice,
-      minBidIncrement,
-      bidDuration,
-      location,
-      category,
-      condition
-    );
     if (!req.files || req.files.length === 0) {
       return res
         .status(400)

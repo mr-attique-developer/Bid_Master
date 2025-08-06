@@ -13,8 +13,6 @@ export const setSocketIO = (socketInstance) => {
 
 export const placeBid = async (req, res) => {
   try {
-    console.log(`🎯 placeBid called for user ${req.user._id} on product ${req.params.productId} with amount ${req.body.amount}`);
-    
     const { amount } = req.body;
     const { productId } = req.params;
     const userId = req.user._id;
@@ -41,12 +39,6 @@ export const placeBid = async (req, res) => {
 
     // 🚫 SELLER PROTECTION: Prevent sellers from bidding on their own products
     if (product.seller._id.toString() === userId.toString()) {
-      console.log('🚫 Seller attempted to bid on own product:', {
-        sellerId: product.seller._id.toString(),
-        userId: userId.toString(),
-        productId: productId,
-        productTitle: product.title
-      });
       return res
         .status(403)
         .json({
@@ -90,8 +82,6 @@ export const placeBid = async (req, res) => {
 
     // Emit real-time notification to all users in the auction room
     if (io) {
-      console.log(`📢 Emitting newBid event for auction-${productId}`);
-      
       // 1. Notify all users in the auction room about the new bid
       io.to(`auction-${productId}`).emit("newBid", {
         bid: populatedBid,
@@ -111,21 +101,15 @@ export const placeBid = async (req, res) => {
         sellerId: product.seller._id.toString()
       });
 
-      console.log(`📢 Emitted newBid to auction room: auction-${productId} and globally`);
-
       // Get all previous bidders who were outbid
       const previousBids = await Bid.find({ 
         product: productId, 
         amount: { $lt: amount } 
       }).populate("bidder", "_id fullName");
 
-      console.log(`📢 Found ${previousBids.length} previous bidders to notify`);
-
       // Notify each outbid user individually
       for (const prevBid of previousBids) {
         if (prevBid.bidder._id.toString() !== userId.toString()) {
-          console.log(`📢 Emitting userOutbid to user: ${prevBid.bidder._id}`);
-          
           io.emit("userOutbid", {
             userId: prevBid.bidder._id.toString(),
             productTitle: product.title,
@@ -137,20 +121,16 @@ export const placeBid = async (req, res) => {
           // Create outbid notification
           try {
             await createOutbidNotification(prevBid.bidder, product, amount, populatedBid.bidder);
-            console.log(`✅ Created outbid notification for user: ${prevBid.bidder._id}`);
           } catch (notificationError) {
             console.error('Error creating outbid notification:', notificationError);
           }
         }
       }
-    } else {
-      console.warn('⚠️ Socket.IO instance not available in bid controller');
     }
 
     // Create new bid notification for seller
     try {
       await createNewBidNotification(populatedBid, product, product.seller);
-      console.log('✅ Created new bid notification for seller');
     } catch (notificationError) {
       console.error('Error creating new bid notification:', notificationError);
     }
