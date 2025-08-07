@@ -137,20 +137,7 @@ const StartChatButton = ({ product, className = "" }) => {
         </div>
       )}
       
-      {/* Debug info (only in development) */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="text-xs text-gray-400 bg-gray-50 border rounded p-2 space-y-1">
-          <div><strong>Debug Info:</strong></div>
-          <div>Product ID: {product?._id}</div>
-          <div>Product Status: {product?.status}</div>
-          <div>Has Winner: {product?.winner ? 'Yes' : 'No'}</div>
-          <div>Winner ID: {product?.winner}</div>
-          <div>Seller ID: {product?.seller?._id || product?.seller}</div>
-          <div>Current User ID: {user?._id}</div>
-          <div>User Role: {userRole}</div>
-          <div>Is Eligible: {isEligibleToChat() ? 'Yes' : 'No'}</div>
-        </div>
-      )}
+     
     </div>
   );
 };
